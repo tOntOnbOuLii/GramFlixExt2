@@ -33,18 +33,20 @@ $providers = $data['providers'] ?? [];
       <p class="muted">Modifiez ici les URLs des sites. Enregistré → met à jour <code>providers.json</code> public.</p>
       <form method="post" action="/actions/save_providers.php">
         <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
-        <table class="table">
+        <div class="table-wrap">
+        <table class="table responsive">
           <thead><tr><th>Slug</th><th>Nom</th><th>URL</th></tr></thead>
           <tbody>
           <?php foreach ($providers as $key => $p): ?>
             <tr>
-              <td><code><?= htmlspecialchars($key) ?></code></td>
-              <td><input type="text" name="providers[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($p['name'] ?? '') ?>" /></td>
-              <td><input type="url" name="providers[<?= htmlspecialchars($key) ?>][baseUrl]" value="<?= htmlspecialchars($p['baseUrl'] ?? '') ?>" /></td>
+              <td data-label="Slug"><code><?= htmlspecialchars($key) ?></code></td>
+              <td data-label="Nom"><input type="text" name="providers[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($p['name'] ?? '') ?>" /></td>
+              <td data-label="URL"><input class="url-input" type="url" name="providers[<?= htmlspecialchars($key) ?>][baseUrl]" value="<?= htmlspecialchars($p['baseUrl'] ?? '') ?>" /></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
         </table>
+        </div>
         <div style="margin-top:12px; display:flex; gap:10px;">
           <button type="submit">Enregistrer</button>
           <a class="btn" href="/providers.json" target="_blank">Voir providers.json public</a>
@@ -54,4 +56,3 @@ $providers = $data['providers'] ?? [];
   </div>
 </body>
 </html>
-

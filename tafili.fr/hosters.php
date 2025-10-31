@@ -30,18 +30,20 @@ $hosters = $data['hosters'] ?? [];
       <p class="muted">Définissez les hébergeurs disponibles (nom + URL/pattern). L’extension peut s’y référer à l’exécution.</p>
       <form method="post" action="/actions/save_hosters.php">
         <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
-        <table class="table">
+        <div class="table-wrap">
+        <table class="table responsive">
           <thead><tr><th>Slug</th><th>Nom</th><th>URL / Pattern</th></tr></thead>
           <tbody>
           <?php foreach ($hosters as $key => $h): ?>
             <tr>
-              <td><code><?= htmlspecialchars($key) ?></code></td>
-              <td><input type="text" name="hosters[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($h['name'] ?? '') ?>" /></td>
-              <td><input type="text" name="hosters[<?= htmlspecialchars($key) ?>][url]" value="<?= htmlspecialchars($h['url'] ?? '') ?>" /></td>
+              <td data-label="Slug"><code><?= htmlspecialchars($key) ?></code></td>
+              <td data-label="Nom"><input type="text" name="hosters[<?= htmlspecialchars($key) ?>][name]" value="<?= htmlspecialchars($h['name'] ?? '') ?>" /></td>
+              <td data-label="URL / Pattern"><input class="url-input" type="text" name="hosters[<?= htmlspecialchars($key) ?>][url]" value="<?= htmlspecialchars($h['url'] ?? '') ?>" /></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
         </table>
+        </div>
         <div class="row" style="margin-top:16px;">
           <div class="col">
             <div class="card">
@@ -73,4 +75,3 @@ $hosters = $data['hosters'] ?? [];
   </div>
 </body>
 </html>
-

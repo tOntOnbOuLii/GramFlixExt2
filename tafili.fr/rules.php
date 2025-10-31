@@ -31,21 +31,23 @@ $rules = $data['rules'] ?? [];
       <p class="muted">Définissez des règles (sélecteurs CSS) par site pour permettre un scraping dynamique côté extension sans recompiler.</p>
       <form method="post" action="/actions/save_rules.php">
         <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
-        <table class="table">
+        <div class="table-wrap">
+        <table class="table responsive">
           <thead><tr><th>Slug</th><th>Search Path</th><th>Query Param</th><th>Item Selector</th><th>Title Selector</th><th>URL Selector</th></tr></thead>
           <tbody>
           <?php foreach ($providers as $slug => $p): $r = $rules[$slug] ?? []; ?>
             <tr>
-              <td><code><?= htmlspecialchars($slug) ?></code></td>
-              <td><input name="rules[<?= htmlspecialchars($slug) ?>][searchPath]" value="<?= htmlspecialchars($r['searchPath'] ?? '') ?>" placeholder="/search" /></td>
-              <td><input name="rules[<?= htmlspecialchars($slug) ?>][searchParam]" value="<?= htmlspecialchars($r['searchParam'] ?? 'q') ?>" placeholder="q" /></td>
-              <td><input name="rules[<?= htmlspecialchars($slug) ?>][itemSel]" value="<?= htmlspecialchars($r['itemSel'] ?? '') ?>" placeholder=".item" /></td>
-              <td><input name="rules[<?= htmlspecialchars($slug) ?>][titleSel]" value="<?= htmlspecialchars($r['titleSel'] ?? '') ?>" placeholder=".title" /></td>
-              <td><input name="rules[<?= htmlspecialchars($slug) ?>][urlSel]" value="<?= htmlspecialchars($r['urlSel'] ?? '') ?>" placeholder="a@href" /></td>
+              <td data-label="Slug"><code><?= htmlspecialchars($slug) ?></code></td>
+              <td data-label="Search Path"><input name="rules[<?= htmlspecialchars($slug) ?>][searchPath]" value="<?= htmlspecialchars($r['searchPath'] ?? '') ?>" placeholder="/search" /></td>
+              <td data-label="Query Param"><input name="rules[<?= htmlspecialchars($slug) ?>][searchParam]" value="<?= htmlspecialchars($r['searchParam'] ?? 'q') ?>" placeholder="q" /></td>
+              <td data-label="Item Selector"><input name="rules[<?= htmlspecialchars($slug) ?>][itemSel]" value="<?= htmlspecialchars($r['itemSel'] ?? '') ?>" placeholder=".item" /></td>
+              <td data-label="Title Selector"><input name="rules[<?= htmlspecialchars($slug) ?>][titleSel]" value="<?= htmlspecialchars($r['titleSel'] ?? '') ?>" placeholder=".title" /></td>
+              <td data-label="URL Selector"><input class="url-input" name="rules[<?= htmlspecialchars($slug) ?>][urlSel]" value="<?= htmlspecialchars($r['urlSel'] ?? '') ?>" placeholder="a@href" /></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
         </table>
+        </div>
         <div style="margin-top:12px;"><button type="submit">Enregistrer</button></div>
       </form>
       <div style="margin-top:12px;">
@@ -55,4 +57,3 @@ $rules = $data['rules'] ?? [];
   </div>
 </body>
 </html>
-
