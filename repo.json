@@ -1,0 +1,15 @@
+{
+  "name": "GramFlix Extensions",
+  "plugins": [
+    {
+      "name": "GramFlix All-in-One",
+      "packageName": "com.gramflix.extensions",
+      "version": "0.1.0",
+      "url": "https://github.com/tOntOnbOuLii/GramFlixEtx2/releases/download/v0.1.0/gramflix-all.cs3",
+      "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixEtx2/main/icon.png",
+      "language": "fr",
+      "tvTypes": ["Movie", "TvSeries", "Anime"]
+    }
+  ]
+}
+

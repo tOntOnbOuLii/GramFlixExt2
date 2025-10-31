@@ -1,0 +1,21 @@
+# Build outputs
+.gradle/
+build/
+**/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Panel runtime data and secrets
+tafili.fr/data/
+tafili.fr/config.local.php
+*.tmp
+
+# Gradle wrapper cache (not used; we provision in CI)
+gradle/
+
