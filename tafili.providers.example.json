@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "providers": {
+    "example": {
+      "name": "Example Site",
+      "baseUrl": "https://example.com"
+    }
+  }
+}
+
