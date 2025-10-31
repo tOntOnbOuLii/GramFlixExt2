@@ -53,15 +53,16 @@ $err = $_GET['err'] ?? '';
       <div class="col">
         <div class="card">
           <h3>Liste des utilisateurs</h3>
-          <table class="table">
+          <div class="table-wrap">
+          <table class="table responsive">
             <thead><tr><th>Nom</th><th>Rôle</th><th>Créé</th><th>Actions</th></tr></thead>
             <tbody>
               <?php foreach ($users as $u): ?>
                 <tr>
-                  <td><?= htmlspecialchars($u['username']) ?></td>
-                  <td><?= htmlspecialchars($u['role'] ?? 'user') ?></td>
-                  <td><?= isset($u['createdAt']) ? date('Y-m-d H:i', $u['createdAt']) : '-' ?></td>
-                  <td>
+                  <td data-label="Nom"><?= htmlspecialchars($u['username']) ?></td>
+                  <td data-label="Rôle"><?= htmlspecialchars($u['role'] ?? 'user') ?></td>
+                  <td data-label="Créé le"><?= isset($u['createdAt']) ? date('Y-m-d H:i', $u['createdAt']) : '-' ?></td>
+                  <td data-label="Actions">
                     <?php if (strcasecmp($u['username'], $me['username']) !== 0): ?>
                       <form method="post" action="/actions/delete_user.php" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?');">
                         <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
@@ -76,10 +77,10 @@ $err = $_GET['err'] ?? '';
               <?php endforeach; ?>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </body>
 </html>
-
