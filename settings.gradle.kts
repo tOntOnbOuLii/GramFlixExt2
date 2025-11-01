@@ -8,7 +8,8 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id == "com.lagradost.cloudstream3.gradle") {
-                useModule("com.github.recloudstream:gradle:${requested.version}")
+                // Map Gradle plugin ID to Jitpack module hosting the plugin
+                useModule("com.github.recloudstream:cloudstream:v4.6.0")
             }
         }
     }
