@@ -29,6 +29,7 @@ foreach ($incoming as $slug => $r) {
         'itemSel' => trim((string)($r['itemSel'] ?? '')),
         'titleSel' => trim((string)($r['titleSel'] ?? '')),
         'urlSel' => trim((string)($r['urlSel'] ?? '')),
+        'embedSel' => trim((string)($r['embedSel'] ?? '')),
     ];
 }
 
@@ -36,4 +37,3 @@ $data = [ 'version' => 1, 'rules' => $clean ];
 save_rules($data);
 header('Location: /rules.php');
 exit;
-

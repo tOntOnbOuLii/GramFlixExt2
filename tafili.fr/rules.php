@@ -33,7 +33,7 @@ $rules = $data['rules'] ?? [];
         <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
         <div class="table-wrap">
         <table class="table responsive">
-          <thead><tr><th>Slug</th><th>Search Path</th><th>Query Param</th><th>Item Selector</th><th>Title Selector</th><th>URL Selector</th></tr></thead>
+          <thead><tr><th>Slug</th><th>Search Path</th><th>Query Param</th><th>Item Selector</th><th>Title Selector</th><th>URL Selector</th><th>Embed Selector</th></tr></thead>
           <tbody>
           <?php foreach ($providers as $slug => $p): $r = $rules[$slug] ?? []; ?>
             <tr>
@@ -43,6 +43,7 @@ $rules = $data['rules'] ?? [];
               <td data-label="Item Selector"><input name="rules[<?= htmlspecialchars($slug) ?>][itemSel]" value="<?= htmlspecialchars($r['itemSel'] ?? '') ?>" placeholder=".item" /></td>
               <td data-label="Title Selector"><input name="rules[<?= htmlspecialchars($slug) ?>][titleSel]" value="<?= htmlspecialchars($r['titleSel'] ?? '') ?>" placeholder=".title" /></td>
               <td data-label="URL Selector"><input class="url-input" name="rules[<?= htmlspecialchars($slug) ?>][urlSel]" value="<?= htmlspecialchars($r['urlSel'] ?? '') ?>" placeholder="a@href" /></td>
+              <td data-label="Embed Selector"><input name="rules[<?= htmlspecialchars($slug) ?>][embedSel]" value="<?= htmlspecialchars($r['embedSel'] ?? '') ?>" placeholder="iframe@src" /></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
