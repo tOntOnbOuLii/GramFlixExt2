@@ -68,10 +68,10 @@ repositories {
 }
 
 dependencies {
-    add("cloudstream", "com.github.recloudstream:cloudstream:master-SNAPSHOT")
+    val cloudstreamVersion = "pre-release"
+
+    add("cloudstream", "com.github.recloudstream:cloudstream:$cloudstreamVersion")
     compileOnly("org.jsoup:jsoup:1.16.1")
-    compileOnly("com.github.recloudstream.cloudstream:library-jvm:master-SNAPSHOT")
-    compileOnly("com.github.recloudstream.cloudstream:library:master-SNAPSHOT")
     compileOnly("com.github.Blatzar:NiceHttp:0.4.13")
 }
 
