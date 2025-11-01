@@ -1,9 +1,19 @@
 @file:Suppress("UnstableApiUsage")
 
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven(url = uri("https://jitpack.io"))
+    }
+    dependencies {
+        classpath("com.github.recloudstream:gradle:master-SNAPSHOT")
+    }
+}
+
 plugins {
     id("com.android.library")
     kotlin("android")
-    id("com.lagradost.cloudstream3.gradle") version "master-SNAPSHOT"
 }
 
 android {
@@ -68,3 +78,6 @@ kotlin {
 //     // language.set("fr")
 //     // description.set("GramFlix extensions pack")
 // }
+
+// Apply Cloudstream gradle plugin from buildscript classpath
+apply(plugin = "com.lagradost.cloudstream3.gradle")
