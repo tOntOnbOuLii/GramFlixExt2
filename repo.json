@@ -4,7 +4,7 @@
     {
       "name": "GramFlix All-in-One",
       "packageName": "com.gramflix.extensions",
-      "version": "1",
+      "version": 1,
       "url": "https://github.com/tOntOnbOuLii/GramFlixExt2/releases/latest/download/gramflix-all.cs3",
       "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/icon.png",
       "language": "fr",
