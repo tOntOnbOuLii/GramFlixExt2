@@ -21,19 +21,19 @@ jobs:
         env:
           SKIP_JDK_VERSION_CHECK: "true"
         run: |
-          sdkmanager --install "platforms;android-33" "build-tools;33.0.2"
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
       - name: Make gradlew executable
         run: chmod +x gradlew
       - name: Build plugin
         run: |
-          ./gradlew :app:packageReleasePlugin --stacktrace --no-daemon || ./gradlew :app:assembleRelease --stacktrace --no-daemon
+          ./gradlew :app:make --stacktrace --no-daemon
       - name: Prepare artifact
         id: prep
         run: |
-          file=$(find app -type f -name '*.cs3' | head -n 1)
-          if [ -z "$file" ]; then echo "No .cs3 built"; exit 1; fi
+          file="app/build/app.cs3"
+          if [ ! -f "$file" ]; then echo "No .cs3 built"; find app -maxdepth 3 -type f; exit 1; fi
           cp "$file" gramflix-all.cs3
           echo "file=gramflix-all.cs3" >> $GITHUB_OUTPUT
       - name: Create Release

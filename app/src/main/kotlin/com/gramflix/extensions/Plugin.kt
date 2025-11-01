@@ -8,6 +8,7 @@ import com.gramflix.extensions.config.HostersConfig
 import com.gramflix.extensions.config.RulesConfig
 
 @Suppress("unused")
+@CloudstreamPlugin
 class Plugin : Plugin() {
     override fun load(context: Context) {
         // Prime remote-config from bundled asset so providers get sensible fallbacks.
