@@ -7,17 +7,15 @@
 - Registered `ConfigDrivenProvider` with heuristic scraping support.
 - Updated web panel (hosters/providers/rules) to sync with GitHub and avoid domain mentions.
 - Added Gradle wrapper, CI workflows (build/release), and GitHub Actions integration.
-- Iteratively adjusted CI (SDK installs, LF endings, wrapper jar, toolchains) and triggered tags up to `v0.2.1`.
-- Investigated build failures locally; aligned toolchain to AGP 8.7.3 / Kotlin 2.1.0 / Gradle 8.9 with JDK 17.
-- Added explicit compile-time dependencies for Cloudstream MPP (`library`, `library-jvm`) plus NiceHttp.
-- Reworked `ConfigDrivenProvider` to Kotlin 2.1 APIs (URI-based search building, new response builders, extractor loader).
-- Annotated the plugin entry-point with `@CloudstreamPlugin`, updated packaging flow, and verified `:app:make` produces `app/build/app.cs3`.
+- Iteratively tuned CI (SDK installs, LF endings, wrapper jar, toolchains) up to the v0.2.1 tag series.
+- Upgraded toolchain to AGP 8.7.3 / Kotlin 2.1.0 / Gradle 8.9 with JDK 17.
+- Reworked `ConfigDrivenProvider` to Kotlin 2.1 APIs and extractor helpers.
+- Annotated the plugin entry-point with `@CloudstreamPlugin`, verified `:app:make` packaging, and aligned Cloudstream dependencies on the `pre-release` channel.
+- Patched `gradlew.bat` to honor `JAVA_HOME` on Windows and published release `v1.0.0` (workflow now ships `gramflix-all.cs3`).
 
 ## Outstanding issues
-- `repo.json` still cible `releases/latest`; créer une release contenant `gramflix-all.cs3` avant de communiquer l’URL.
-- Kotlin warnings subsistent dans les helpers config (`optString` nullable); à corriger si l’on active des règles plus strictes.
+- Remaining nullable warnings in config helpers (`optString`) should be cleaned up before tightening compiler flags.
 
 ## Next intended steps
-- Publier un tag (ex: `v1.0.0`) après génération locale de `app/build/app.cs3`, puis mettre en ligne l’asset dans la release GitHub.
-- Vérifier/mettre à jour `repo.json` et la version hébergée pour pointer vers l’URL de l’asset nouvellement publié.
-- Nettoyer les avertissements de nullabilité sur les configs pour faciliter des builds plus stricts.
+- Confirm any externally hosted `repo.json` points to `releases/latest` (now serving `v1.0.0` with `gramflix-all.cs3`).
+- Address the outstanding null-safety warnings so stricter builds can be enabled.
