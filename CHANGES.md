@@ -1,6 +1,6 @@
 Recent changes
 
-- Added local fallback config at `app/src/main/assets/providers.json` preloaded by the plugin, with background refresh from `https://cs.tafili.fr/providers.json`.
+- Added local fallback config at `app/src/main/assets/providers.json` preloaded by the plugin, with background refresh from a remote JSON (WebPanel/GitHub mirror).
 - Implemented `RemoteConfig.primeFromAssets` and made `refreshFromNetwork` non-fatal.
 - Wired `Plugin.load` to initialize remote config.
 - Added Gradle wrapper files and toolchain settings to target JDK 17 (auto-download enabled).

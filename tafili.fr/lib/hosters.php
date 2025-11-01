@@ -25,7 +25,7 @@ function save_hosters(array $data): bool {
     if ($ok) {
         @file_put_contents(HOSTERS_WEB_JSON, $payload, LOCK_EX);
         if (github_sync_enabled()) {
-            @github_put_file('hosters.json', $payload, 'Update hosters.json from cs.tafili.fr panel');
+            @github_put_file('hosters.json', $payload, 'Update hosters.json from web panel');
         }
     }
     return $ok;
