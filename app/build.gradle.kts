@@ -18,11 +18,11 @@ plugins {
 
 android {
     namespace = "com.gramflix.extensions"
-    compileSdk = 34
+    compileSdk = 33
 
     defaultConfig {
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 33
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -40,18 +40,11 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "17"
-    }
-    // Ensure toolchain selection can auto-provision JDK 17 when missing
-    @Suppress("UnstableApiUsage")
-    java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
-        }
+        jvmTarget = "11"
     }
     sourceSets {
         getByName("main").assets.srcDirs("src/main/assets")
@@ -68,10 +61,7 @@ dependencies {
     // The Cloudstream gradle plugin pulls required deps during packaging.
 }
 
-// Explicitly set Kotlin toolchain
-kotlin {
-    jvmToolchain(17)
-}
+// toolchain not required for AGP 7.4.2; use system JDK 11
 
 // Optional Cloudstream configuration block (minimal)
 // cloudstream {
