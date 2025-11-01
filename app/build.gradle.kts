@@ -3,7 +3,7 @@
 plugins {
     id("com.android.library")
     kotlin("android")
-    id("com.lagradost.cloudstream3.gradle") version "0.1.4"
+    id("com.lagradost.cloudstream3.gradle") version "0.2.4"
 }
 
 android {
@@ -36,6 +36,13 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    // Ensure toolchain selection can auto-provision JDK 17 when missing
+    @Suppress("UnstableApiUsage")
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
+    }
     sourceSets {
         getByName("main").assets.srcDirs("src/main/assets")
     }
@@ -51,7 +58,12 @@ dependencies {
     // The Cloudstream gradle plugin pulls required deps during packaging.
 }
 
-// Optional Cloudstream configuration block (minimal; the plugin works without too)
+// Explicitly set Kotlin toolchain
+kotlin {
+    jvmToolchain(17)
+}
+
+// Optional Cloudstream configuration block (minimal)
 // cloudstream {
 //     // language.set("fr")
 //     // description.set("GramFlix extensions pack")

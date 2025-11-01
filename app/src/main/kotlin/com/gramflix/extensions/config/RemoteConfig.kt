@@ -15,16 +15,26 @@ import org.json.JSONObject
 object RemoteConfig {
     // Hosted config consumed by the extensions
     private const val DEFAULT_URL = "https://cs.tafili.fr/providers.json"
+    private val FALLBACK_URLS = listOf(
+        DEFAULT_URL,
+        // GitHub mirror (optional, updated by panel if GitHub sync enabled)
+        "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/providers.json"
+    )
 
     // Simple in-memory cache
     @Volatile
     private var cached: JSONObject? = null
 
-    // Replace with Cloudstream's networking (e.g., app.get) when the runtime is available.
+    // Basic network fetch using standard library. Cloudstream may override with its own client.
     private fun httpGet(url: String): String {
-        // Placeholder to avoid adding external deps in skeleton.
-        // At runtime in Cloudstream, replace calls with app.get(url).text
-        throw NotImplementedError("Networking is provided by Cloudstream at runtime.")
+        return try {
+            val connection = java.net.URL(url).openConnection()
+            connection.connectTimeout = 7000
+            connection.readTimeout = 7000
+            connection.getInputStream().bufferedReader().use { it.readText() }
+        } catch (e: Throwable) {
+            throw e
+        }
     }
 
     fun getProviderBaseUrlOrNull(key: String, fallback: String? = null): String? {
@@ -49,9 +59,29 @@ object RemoteConfig {
         }
     }
 
-    // In Cloudstream runtime, this would be a suspend function using app.get
+    // Try to refresh from network; swallow errors to avoid crashing the plugin when offline.
     fun refreshFromNetwork(url: String = DEFAULT_URL) {
-        val text = httpGet(url)
-        primeFromString(text)
+        val urls = if (url == DEFAULT_URL) FALLBACK_URLS else listOf(url)
+        for (u in urls) {
+            try {
+                val text = httpGet(u)
+                primeFromString(text)
+                return
+            } catch (_: Throwable) {
+                // try next
+            }
+        }
+    }
+
+    fun providersObject(): JSONObject? = cached?.optJSONObject("providers")
+
+    // Load a bundled JSON from assets (e.g., app/src/main/assets/providers.json)
+    fun primeFromAssets(androidContext: android.content.Context, assetName: String = "providers.json") {
+        try {
+            val text = androidContext.assets.open(assetName).bufferedReader().use { it.readText() }
+            primeFromString(text)
+        } catch (_: Throwable) {
+            // ignore missing asset
+        }
     }
 }

@@ -3,20 +3,27 @@ package com.gramflix.extensions.config
 import org.json.JSONObject
 
 /**
- * Remote hosters mapping loader.
- * Expected JSON structure:
+ * Remote scraping rules per provider.
+ * JSON structure:
  * {
  *   "version": 1,
- *   "hosters": {
- *     "uqload": {"name":"Uqload","url":"https://uqload.*"}
+ *   "rules": {
+ *     "Slug": {
+ *       "searchPath": "/search",
+ *       "searchParam": "q",
+ *       "itemSel": ".item",
+ *       "titleSel": ".title",
+ *       "urlSel": "a@href",
+ *       "embedSel": "iframe@src" // optional, for load links
+ *     }
  *   }
  * }
  */
-object HostersConfig {
-    private const val DEFAULT_URL = "https://cs.tafili.fr/hosters.json"
+object RulesConfig {
+    private const val DEFAULT_URL = "https://cs.tafili.fr/rules.json"
     private val FALLBACK_URLS = listOf(
         DEFAULT_URL,
-        "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/hosters.json"
+        "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/rules.json"
     )
 
     @Volatile
@@ -48,17 +55,8 @@ object HostersConfig {
         }
     }
 
-    fun getHosterUrlOrNull(key: String, fallback: String? = null): String? {
-        val json = cached ?: return fallback
-        val obj = json.optJSONObject("hosters") ?: return fallback
-        val item = obj.optJSONObject(key) ?: return fallback
-        return item.optString("url", fallback)
-    }
-
-    fun getHosterNameOrNull(key: String, fallback: String? = null): String? {
-        val json = cached ?: return fallback
-        val obj = json.optJSONObject("hosters") ?: return fallback
-        val item = obj.optJSONObject(key) ?: return fallback
-        return item.optString("name", fallback)
+    fun getRules(slug: String): JSONObject? {
+        val json = cached ?: return null
+        return json.optJSONObject("rules")?.optJSONObject(slug)
     }
 }

@@ -23,7 +23,10 @@ function save_rules(array $data): bool {
     $ok = @file_put_contents(RULES_DATA_JSON, $payload, LOCK_EX) !== false;
     if ($ok) {
         @file_put_contents(RULES_WEB_JSON, $payload, LOCK_EX);
+        // optional GitHub sync
+        if (function_exists('github_sync_enabled') && github_sync_enabled()) {
+            @github_put_file('rules.json', $payload, 'Update rules.json from cs.tafili.fr panel');
+        }
     }
     return $ok;
 }
-

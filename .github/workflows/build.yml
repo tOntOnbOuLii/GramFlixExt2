@@ -2,8 +2,8 @@ name: Build CS3
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch: {}
+    branches: [ main, work ]
+  pull_request:
 
 jobs:
   build:
@@ -14,22 +14,21 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
       - name: Build plugin
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: 8.5
-          arguments: :app:packageReleasePlugin --stacktrace
-      - name: Prepare artifact name
-        shell: bash
         run: |
-          set -euo pipefail
-          f=$(ls app/build/outputs/plugin/**/*.cs3 | head -n1)
-          echo "Found: $f"
-          mkdir -p dist
-          cp "$f" dist/gramflix-all.cs3
-      - name: Upload plugin artifact
+          ./gradlew --version
+          ./gradlew :app:packageReleasePlugin --stacktrace --no-daemon
+      - name: Collect artifact
+        run: |
+          mkdir -p build-artifacts
+          cs3=$(find app -type f -name "*.cs3" | head -n 1)
+          if [ -z "$cs3" ]; then echo "No .cs3 built"; exit 1; fi
+          cp "$cs3" build-artifacts/gramflix-all.cs3
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cs3-plugin
-          path: dist/gramflix-all.cs3
+          name: gramflix-plugin
+          path: build-artifacts/gramflix-all.cs3
