@@ -27,7 +27,7 @@ function save_providers(array $data): bool {
         @file_put_contents(PROVIDERS_WEB_JSON, $payload, LOCK_EX);
         // optional GitHub sync
         if (github_sync_enabled()) {
-            @github_put_file('providers.json', $payload, 'Update providers.json from cs.tafili.fr panel');
+            @github_put_file('providers.json', $payload, 'Update providers.json from web panel');
         }
     }
     return $ok;

@@ -13,8 +13,8 @@ import org.json.JSONObject
  * }
  */
 object RemoteConfig {
-    // Hosted config consumed by the extensions
-    private const val DEFAULT_URL = "https://cs.tafili.fr/providers.json"
+    // Hosted config consumed by the extensions (public mirror)
+    private const val DEFAULT_URL = "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/providers.json"
     private val FALLBACK_URLS = listOf(
         DEFAULT_URL,
         // GitHub mirror (optional, updated by panel if GitHub sync enabled)
@@ -61,16 +61,10 @@ object RemoteConfig {
 
     // Try to refresh from network; swallow errors to avoid crashing the plugin when offline.
     fun refreshFromNetwork(url: String = DEFAULT_URL) {
-        val urls = if (url == DEFAULT_URL) FALLBACK_URLS else listOf(url)
-        for (u in urls) {
-            try {
-                val text = httpGet(u)
-                primeFromString(text)
-                return
-            } catch (_: Throwable) {
-                // try next
-            }
-        }
+        try {
+            val text = httpGet(url)
+            primeFromString(text)
+        } catch (_: Throwable) { }
     }
 
     fun providersObject(): JSONObject? = cached?.optJSONObject("providers")

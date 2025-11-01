@@ -8,7 +8,7 @@ import org.jsoup.Jsoup
 
 class ConfigDrivenProvider : MainAPI() {
     override var name = "GramFlix Dynamic"
-    override var mainUrl = "https://cs.tafili.fr"
+    override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
 

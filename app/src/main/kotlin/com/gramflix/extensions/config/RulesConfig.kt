@@ -20,7 +20,7 @@ import org.json.JSONObject
  * }
  */
 object RulesConfig {
-    private const val DEFAULT_URL = "https://cs.tafili.fr/rules.json"
+    private const val DEFAULT_URL = "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/rules.json"
     private val FALLBACK_URLS = listOf(
         DEFAULT_URL,
         "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/rules.json"
@@ -45,14 +45,10 @@ object RulesConfig {
     }
 
     fun refreshFromNetwork(url: String = DEFAULT_URL) {
-        val urls = if (url == DEFAULT_URL) FALLBACK_URLS else listOf(url)
-        for (u in urls) {
-            try {
-                val text = httpGet(u)
-                primeFromString(text)
-                return
-            } catch (_: Throwable) { }
-        }
+        try {
+            val text = httpGet(url)
+            primeFromString(text)
+        } catch (_: Throwable) { }
     }
 
     fun getRules(slug: String): JSONObject? {
