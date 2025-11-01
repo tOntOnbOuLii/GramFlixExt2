@@ -18,6 +18,7 @@ class Plugin : Plugin() {
         }
 
         // Also warm up other remote configs
+        RulesConfig.primeFromAssets(context)
         kotlin.concurrent.thread(isDaemon = true, name = "gf-hosters-refresh") {
             HostersConfig.refreshFromNetwork()
         }

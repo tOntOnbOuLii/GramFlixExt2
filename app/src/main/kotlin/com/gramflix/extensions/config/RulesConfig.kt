@@ -59,4 +59,11 @@ object RulesConfig {
         val json = cached ?: return null
         return json.optJSONObject("rules")?.optJSONObject(slug)
     }
+
+    fun primeFromAssets(androidContext: android.content.Context, assetName: String = "rules.json") {
+        try {
+            val text = androidContext.assets.open(assetName).bufferedReader().use { it.readText() }
+            primeFromString(text)
+        } catch (_: Throwable) { }
+    }
 }

@@ -5,6 +5,13 @@ pluginManagement {
         mavenCentral()
         maven(url = uri("https://jitpack.io"))
     }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.lagradost.cloudstream3.gradle") {
+                useModule("com.github.recloudstream:gradle:${requested.version}")
+            }
+        }
+    }
 }
 
 dependencyResolutionManagement {
@@ -18,4 +25,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "gramflix-cloudstream-extensions"
 include(":app")
-

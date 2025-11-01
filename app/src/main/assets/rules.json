@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "rules": {
+    "FrenchStream": {"searchPath": "?s=", "searchParam": "s", "itemSel": ".post a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "CPasMal": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "Cinepulse": {"searchPath": "search?q=", "searchParam": "q", "itemSel": "a.poster", "titleSel": ".title, a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "CinePlateforme": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "MonStream": {"searchPath": "recherche?q=", "searchParam": "q", "itemSel": "a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "BuzzMonclick": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "PapaduStream": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "FilmoFlix": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "WookaFR": {"searchPath": "search?q=", "searchParam": "q", "itemSel": "a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "WowFilms": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "NightFlix": {"searchPath": "search?q=", "searchParam": "q", "itemSel": ".item a[href], a.poster", "titleSel": ".title, a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "DirectFR": {"searchPath": "?s=", "searchParam": "s", "itemSel": "a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "Fanstream": {"searchPath": "?s=", "searchParam": "s", "itemSel": "article a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"},
+    "Frembed": {"searchPath": "search?q=", "searchParam": "q", "itemSel": "a[href]", "titleSel": "a", "urlSel": "a@href", "embedSel": "iframe@src"}
+  }
+}
+

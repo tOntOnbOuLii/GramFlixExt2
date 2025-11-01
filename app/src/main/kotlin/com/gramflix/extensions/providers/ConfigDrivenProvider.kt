@@ -2,7 +2,6 @@ package com.gramflix.extensions.providers
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.AppUtils
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
 import org.jsoup.Jsoup
@@ -48,19 +47,53 @@ class ConfigDrivenProvider : MainAPI() {
             val slug = key as String
             val item = providers.optJSONObject(slug) ?: return@forEach
             val baseUrl = item.optString("baseUrl", null) ?: return@forEach
-            val rule = parseRule(slug) ?: return@forEach
+            val rule = parseRule(slug)
             try {
-                val url = okhttp3.HttpUrl.parse(baseUrl)?.newBuilder()?.apply {
-                    addEncodedPathSegments(rule.searchPath.trimStart('/'))
-                    addQueryParameter(rule.searchParam, query)
-                }?.build()?.toString() ?: return@forEach
+                val url = if (rule != null) {
+                    okhttp3.HttpUrl.parse(baseUrl)?.newBuilder()?.apply {
+                        val sp = rule.searchPath.trimStart('/')
+                        if (sp.contains("?")) {
+                            addEncodedPathSegments(sp.substringBefore('?'))
+                        } else {
+                            addEncodedPathSegments(sp)
+                        }
+                        addQueryParameter(rule.searchParam, query)
+                    }?.build()?.toString()
+                } else {
+                    // Heuristic fallbacks: try common search endpoints
+                    listOf(
+                        "$baseUrl/?s=${'$'}query",
+                        "$baseUrl/search?q=${'$'}query",
+                        "$baseUrl/recherche?q=${'$'}query",
+                        "$baseUrl/?story=${'$'}query"
+                    ).firstOrNull()
+                } ?: return@forEach
                 val res = app.get(url, referer = baseUrl)
                 val doc = res.document
-                doc.select(rule.itemSel).forEach { card ->
-                    val title = selectAttrOrText(card, rule.titleSel) ?: return@forEach
-                    val href = selectAttrOrText(card, rule.urlSel) ?: return@forEach
-                    val absUrl = org.jsoup.helper.StringUtil.resolve(baseUrl, href)
-                    json.add(MovieSearchResponse(title, absUrl, this.name, TvType.Movie))
+                if (rule != null) {
+                    doc.select(rule.itemSel).forEach { card ->
+                        val title = selectAttrOrText(card, rule.titleSel) ?: return@forEach
+                        val href = selectAttrOrText(card, rule.urlSel) ?: return@forEach
+                        val absUrl = org.jsoup.helper.StringUtil.resolve(baseUrl, href)
+                        json.add(MovieSearchResponse(title, absUrl, this.name, TvType.Movie))
+                    }
+                } else {
+                    // Heuristic: collect anchors that look like item links
+                    doc.select("a[href]").asSequence()
+                        .map { it }
+                        .filter { a ->
+                            val href = a.attr("abs:href")
+                            href.startsWith(baseUrl.substringBefore('/', baseUrl.indexOf("//") + 2))
+                        }
+                        .distinctBy { it.attr("abs:href") }
+                        .take(30)
+                        .forEach { a ->
+                            val title = a.text().trim().ifBlank { a.attr("title").trim() }
+                            val href = a.attr("abs:href")
+                            if (title.isNotBlank() && href.isNotBlank()) {
+                                json.add(MovieSearchResponse(title, href, this.name, TvType.Movie))
+                            }
+                        }
                 }
             } catch (_: Throwable) { /* ignore site errors */ }
         }
