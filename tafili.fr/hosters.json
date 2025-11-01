@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "hosters": {
-    "uqload": { "name": "Uqload", "url": "https://uqload.*" },
-    "doodstream": { "name": "DoodStream", "url": "https://dood.*" },
-    "streamtape": { "name": "StreamTape", "url": "https://streamtape.com" }
-  }
-}
-
