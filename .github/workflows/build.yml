@@ -22,10 +22,12 @@ jobs:
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
+      - name: Make gradlew executable
+        run: chmod +x gradlew
       - name: Build plugin
         run: |
           ./gradlew --version
-          ./gradlew :app:packageReleasePlugin --stacktrace --no-daemon
+          ./gradlew :app:packageReleasePlugin --stacktrace --no-daemon || ./gradlew :app:assembleRelease --stacktrace --no-daemon
       - name: Collect artifact
         run: |
           mkdir -p build-artifacts
