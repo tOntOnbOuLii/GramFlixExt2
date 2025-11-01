@@ -16,6 +16,6 @@ tafili.fr/data/
 tafili.fr/config.local.php
 *.tmp
 
-# Gradle wrapper cache (not used; we provision in CI)
-gradle/
-
+# Gradle wrapper (allow wrapper JAR and properties)
+!gradle/wrapper/
+!gradle/wrapper/**
