@@ -1,7 +1,7 @@
 GramFlix v1.4.1
 ---------------
 
-- Fixed IMDB fallback playback by switching embeds to `https://vidsrc.net`, matching Cloudstream’s built-in VidSrc extractor.
+- Fixed IMDB fallback playback by switching embeds to `https://vidsrc.net`, matching the Cloudstream VidSrc extractor.
 - Rebuilt package via `gradlew :app:make` (artifact 48055 octets, plugin version 6).
 
 GramFlix v1.4.0
@@ -26,4 +26,3 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` and made `refreshFromNetwork` non-fatal.
 - Wired `Plugin.load` to initialize remote config.
 - Added Gradle wrapper files and toolchain settings to target JDK 17 (auto-download enabled).
-
