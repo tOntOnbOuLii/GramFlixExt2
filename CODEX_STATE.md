@@ -1,6 +1,8 @@
 # Codex Session State
 
 ## Actions realisees (session en cours)
+- Provider dynamique renforcé (matching accent-insensible, tri des résultats, suivi des slugs, liens AJAX `getxfield`).
+- Empaquetage `gramflix-all.cs3` via `gradlew.bat :app:make` (version 4, taille 39660 octets).
 - Generation/packaging `:app:make` valide (JDK 17 via `gradlew.bat` patch).
 - Publication du tag `v1.0.0` et creation de la release GitHub correspondante (`GramFlix v1.0.0`).
 - Televersement de l'asset `gramflix-all.cs3` dans la release (URL `releases/latest` utilisable par Cloudstream).
@@ -13,6 +15,7 @@
 - `repo.json`, `icon.png` et l'asset `gramflix-all.cs3` repondent en HTTP 200.
 
 ## Points de vigilance / a faire
+- Publier le tag `v1.3.0` + mise à jour de la release GitHub (remplacer l'asset `gramflix-all.cs3`).
 - Tester l'ajout du depot dans Cloudstream (avec l'URL `https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/repo.json`) apres mise en cache du nouveau manifeste.
 - Verifier que la recherche et l'accueil remontent des resultats pertinents (titres et jaquettes) apres mise en ligne des JSON distants; vider le cache de l'extension si besoin.
 - Nettoyer les avertissements de nullabilite (`optString`) dans le code si on veut des builds stricts.

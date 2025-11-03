@@ -19,3 +19,7 @@ tafili.fr/config.local.php
 # Gradle wrapper (allow wrapper JAR and properties)
 !gradle/wrapper/
 !gradle/wrapper/**
+
+# Sensitive tokens
+token.txt
+gramflix-all.cs3
