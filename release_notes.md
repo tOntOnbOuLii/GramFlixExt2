@@ -1,6 +1,6 @@
-GramFlix v1.3.0
+GramFlix v1.4.0
 
-- Accueil : cartes extraites via des sélecteurs robustes, résolutions d'URL améliorées et sections toujours peuplées.
-- Recherche : tri par pertinence (normalisation accent/majuscules) pour ne garder que les résultats liés à la requête.
-- Lecture : prise en charge des boutons AJAX (getxfield) et récupération automatique des iframes/hébergeurs effectifs.
-- Build : `:app:make` (nouvelle taille indiquée dans `plugins.json` après empaquetage).
+- Accueil : repli offline via un carrousel IMDB (JSON hébergé) lorsque les scrapers dynamiques échouent.
+- Recherche : fallback automatique sur l'API de suggestion IMDB avec liens directs `vidsrc` (imdb://).
+- Lecture : génération d'embed `https://vidsrc.vip` pour les titres IMDB (dataUrl JSON enrichi).
+- Build : `:app:make` (nouvelle taille 48052 octets, version 5 dans `plugins.json`).

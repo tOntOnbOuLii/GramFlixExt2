@@ -16,6 +16,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
+import com.gramflix.extensions.config.HomeConfig
 import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -65,6 +66,13 @@ class ConfigDrivenProvider : MainAPI() {
         val referer: String
     )
 
+    private data class ImdbItem(
+        val imdbId: String,
+        val title: String,
+        val poster: String?,
+        val year: Int?
+    )
+
     private val whitespaceRegex = Regex("\\s+")
     private val qualityTokens = setOf(
         "HDLIGHT", "HD-LIGHT", "HDCAM", "CAM", "TRUEFRENCH", "FRENCH", "MULTI", "MULTI-VF",
@@ -78,6 +86,9 @@ class ConfigDrivenProvider : MainAPI() {
     private val urlSlugLock = Any()
     private val urlSlugCache = object : LinkedHashMap<String, String>(512, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 1024
+    }
+    private val fallbackCache = object : LinkedHashMap<String, ImdbItem>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImdbItem>?): Boolean = size > 256
     }
 
     private fun canonicalizeUrl(url: String): String = url.trim().trimEnd('/')
@@ -155,6 +166,18 @@ class ConfigDrivenProvider : MainAPI() {
         }
         val normalizedUrl = canonicalizeUrl(url)
         return metas.firstOrNull { normalizedUrl.startsWith(canonicalizeUrl(it.baseUrl), ignoreCase = true) }
+    }
+
+    private fun cacheImdbItem(item: ImdbItem) {
+        synchronized(fallbackCache) {
+            fallbackCache[item.imdbId] = item
+        }
+    }
+
+    private fun getCachedImdbItem(imdbId: String): ImdbItem? {
+        synchronized(fallbackCache) {
+            return fallbackCache[imdbId]
+        }
     }
 
     private fun sanitizeTitle(raw: String?): String {
@@ -256,6 +279,89 @@ class ConfigDrivenProvider : MainAPI() {
             score -= lengthDiff * 3
         }
         return score.coerceAtLeast(0)
+    }
+
+    private suspend fun fetchImdbDetails(imdbId: String): ImdbItem? {
+        val first = imdbId.firstOrNull()?.lowercaseChar() ?: return null
+        val url = "https://v3.sg.media-imdb.com/suggestion/$first/$imdbId.json"
+        return runCatching { app.get(url, referer = "https://www.imdb.com/") }.getOrNull()
+            ?.let { response ->
+                val json = runCatching { JSONObject(response.text) }.getOrNull() ?: return null
+                val array = json.optJSONArray("d") ?: return null
+                (0 until array.length())
+                    .asSequence()
+                    .mapNotNull { array.optJSONObject(it) }
+                    .firstOrNull { imdbId.equals(it.optString("id"), ignoreCase = true) }
+                    ?.let { obj ->
+                        val title = obj.optString("l")
+                        if (title.isBlank()) return null
+                        val image = obj.optJSONObject("i")?.optString("imageUrl")?.takeIf { it.isNotBlank() }
+                        val year = obj.optInt("y").takeIf { it > 0 }
+                        ImdbItem(imdbId, title, image, year)
+                    }
+            }?.also { cacheImdbItem(it) }
+    }
+
+    private fun buildFallbackSearchResponse(item: ImdbItem): SearchResponse {
+        val url = "imdb://${item.imdbId}"
+        val response = newMovieSearchResponse(item.title, url, TvType.Movie)
+        item.poster?.let { response.posterUrl = it }
+        item.year?.let { response.year = it }
+        return response
+    }
+
+    private suspend fun searchFallbackImdb(query: String): List<SearchResponse> {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return emptyList()
+        val first = trimmed.firstOrNull()?.lowercaseChar()?.takeIf { it.isLetterOrDigit() } ?: '0'
+        val encoded = runCatching { URLEncoder.encode(trimmed, StandardCharsets.UTF_8.name()) }.getOrElse { trimmed }
+        val url = "https://v2.sg.media-imdb.com/suggestion/$first/$encoded.json"
+        val response = runCatching { app.get(url, referer = "https://www.imdb.com/") }.getOrNull()
+            ?: return emptyList()
+        val json = runCatching { JSONObject(response.text) }.getOrNull() ?: return emptyList()
+        val array = json.optJSONArray("d") ?: return emptyList()
+        val results = ArrayList<SearchResponse>()
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            val type = item.optString("qid")
+            if (!type.equals("movie", ignoreCase = true)) continue
+            val imdbId = item.optString("id")
+            val title = item.optString("l")
+            if (imdbId.isBlank() || title.isBlank()) continue
+            val poster = item.optJSONObject("i")?.optString("imageUrl")?.takeIf { it.isNotBlank() }
+            val year = item.optInt("y").takeIf { it > 0 }
+            val imdbItem = ImdbItem(imdbId, title, poster, year)
+            cacheImdbItem(imdbItem)
+            results += buildFallbackSearchResponse(imdbItem)
+            if (results.size >= 30) break
+        }
+        return results
+    }
+
+    private fun loadHomeFallback(): List<HomePageList> {
+        val sections = HomeConfig.sectionsArray() ?: return emptyList()
+        val lists = mutableListOf<HomePageList>()
+        for (i in 0 until sections.length()) {
+            val section = sections.optJSONObject(i) ?: continue
+            val name = section.optString("name").ifBlank { "GramFlix" }
+            val items = section.optJSONArray("items") ?: continue
+            val responses = mutableListOf<SearchResponse>()
+            for (j in 0 until items.length()) {
+                val item = items.optJSONObject(j) ?: continue
+                val imdbId = item.optString("imdbId")
+                val title = item.optString("title")
+                if (imdbId.isBlank() || title.isBlank()) continue
+                val poster = item.optString("poster").takeIf { it.isNotBlank() }
+                val year = item.optInt("year").takeIf { it > 0 }
+                val imdbItem = ImdbItem(imdbId, title, poster, year)
+                cacheImdbItem(imdbItem)
+                responses += buildFallbackSearchResponse(imdbItem)
+            }
+            if (responses.isNotEmpty()) {
+                lists += HomePageList(name, responses)
+            }
+        }
+        return lists
     }
 
     private fun collectSelectorValues(card: Element, selector: String): List<String> {
@@ -636,12 +742,26 @@ class ConfigDrivenProvider : MainAPI() {
                 // Ignore providers that fail
             }
         }
-        if (results.isEmpty()) return emptyList()
+        if (results.isEmpty()) {
+            val fallback = searchFallbackImdb(query)
+            if (fallback.isNotEmpty()) return fallback
+            return emptyList()
+        }
         val sorted = results.sortedWith(
             compareByDescending<SearchItem> { it.score }
                 .thenBy { normalizeSearchText(it.response.name) }
         )
-        return sorted.take(60).map { it.response }
+        val primary = sorted.take(60).map { it.response }.toMutableList()
+        if (primary.size < 10) {
+            val existing = primary.map { it.url }.toHashSet()
+            val fallback = searchFallbackImdb(query)
+            fallback.forEach { item ->
+                if (existing.add(item.url)) {
+                    primary += item
+                }
+            }
+        }
+        return primary.take(60)
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -668,18 +788,41 @@ class ConfigDrivenProvider : MainAPI() {
                 // Ignore providers that fail
             }
         }
+        if (lists.isEmpty()) {
+            HomeConfig.ensureLoaded()
+            val fallbackLists = loadHomeFallback()
+            if (fallbackLists.isNotEmpty()) {
+                return newHomePageResponse(fallbackLists, hasNext = false)
+            }
+        }
         val hasNext = startIndex + pageSize < metas.size
         return newHomePageResponse(lists, hasNext)
     }
 
-    private data class LoadData(val url: String, val slug: String?)
+    private data class LoadData(
+        val url: String,
+        val slug: String?,
+        val imdbId: String?,
+        val title: String?,
+        val poster: String?,
+        val year: Int?
+    )
 
-    private fun encodeLoadData(url: String, slug: String?): String {
+    private fun encodeLoadData(
+        url: String,
+        slug: String?,
+        imdbId: String? = null,
+        title: String? = null,
+        poster: String? = null,
+        year: Int? = null
+    ): String {
         val obj = JSONObject()
         obj.put("url", url)
-        if (!slug.isNullOrBlank()) {
-            obj.put("slug", slug)
-        }
+        slug?.takeIf { it.isNotBlank() }?.let { obj.put("slug", it) }
+        imdbId?.takeIf { it.isNotBlank() }?.let { obj.put("imdbId", it) }
+        title?.takeIf { it.isNotBlank() }?.let { obj.put("title", it) }
+        poster?.takeIf { it.isNotBlank() }?.let { obj.put("poster", it) }
+        year?.let { obj.put("year", it) }
         return obj.toString()
     }
 
@@ -688,14 +831,35 @@ class ConfigDrivenProvider : MainAPI() {
             val obj = JSONObject(data)
             val targetUrl = obj.optString("url").takeIf { it.isNotBlank() } ?: data
             val slug = obj.optString("slug").takeIf { it.isNotBlank() }
-            LoadData(targetUrl, slug)
+            val imdb = obj.optString("imdbId").takeIf { it.isNotBlank() }
+            val title = obj.optString("title").takeIf { it.isNotBlank() }
+            val poster = obj.optString("poster").takeIf { it.isNotBlank() }
+            val yearValue = obj.optInt("year")
+            val year = if (obj.has("year") && yearValue > 0) yearValue else null
+            LoadData(targetUrl, slug, imdb, title, poster, year)
         }.getOrElse {
-            LoadData(data, null)
+            LoadData(data, null, null, null, null, null)
         }
     }
 
     override suspend fun load(url: String): LoadResponse? {
         return try {
+            if (url.startsWith("imdb://")) {
+                val imdbId = url.removePrefix("imdb://")
+                val item = getCachedImdbItem(imdbId) ?: fetchImdbDetails(imdbId) ?: return null
+                val dataPayload = encodeLoadData(
+                    url = url,
+                    slug = null,
+                    imdbId = imdbId,
+                    title = item.title,
+                    poster = item.poster,
+                    year = item.year
+                )
+                return newMovieLoadResponse(item.title, url, TvType.Movie, dataUrl = dataPayload) { }.apply {
+                    item.poster?.let { posterUrl = it }
+                    item.year?.let { year = it }
+                }
+            }
             ensureRemoteConfigs()
             val metas = gatherProviders()
             val cachedSlug = findSlugForUrl(url)
@@ -723,9 +887,17 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         return try {
-            ensureRemoteConfigs()
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
+            val imdbId = loadData.imdbId
+            if (!imdbId.isNullOrBlank()) {
+                val embedUrl = "https://vidsrc.vip/embed/movie?imdb=$imdbId"
+                return runCatching {
+                    loadExtractor(embedUrl, "https://vidsrc.vip/", subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+            }
+            ensureRemoteConfigs()
             val metas = gatherProviders()
             val cachedSlug = loadData.slug ?: findSlugForUrl(pageUrl)
             val meta = when {

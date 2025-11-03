@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.HostersConfig
 import com.gramflix.extensions.config.RulesConfig
+import com.gramflix.extensions.config.HomeConfig
 
 @Suppress("unused")
 @CloudstreamPlugin
@@ -20,11 +21,15 @@ class Plugin : Plugin() {
 
         // Also warm up other remote configs
         RulesConfig.primeFromAssets(context)
+        HomeConfig.primeFromAssets(context)
         kotlin.concurrent.thread(isDaemon = true, name = "gf-hosters-refresh") {
             HostersConfig.refreshFromNetwork()
         }
         kotlin.concurrent.thread(isDaemon = true, name = "gf-rules-refresh") {
             RulesConfig.refreshFromNetwork()
+        }
+        kotlin.concurrent.thread(isDaemon = true, name = "gf-home-refresh") {
+            HomeConfig.refreshFromNetwork()
         }
 
         // Providers registration will be added incrementally in dedicated classes.
