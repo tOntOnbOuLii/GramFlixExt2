@@ -891,9 +891,9 @@ class ConfigDrivenProvider : MainAPI() {
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
             if (!imdbId.isNullOrBlank()) {
-                val embedUrl = "https://vidsrc.vip/embed/movie?imdb=$imdbId"
+                val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdbId"
                 return runCatching {
-                    loadExtractor(embedUrl, "https://vidsrc.vip/", subtitleCallback, callback)
+                    loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, callback)
                     true
                 }.getOrElse { false }
             }
