@@ -1,3 +1,9 @@
+GramFlix v1.4.1
+---------------
+
+- Fixed IMDB fallback playback by switching embeds to `https://vidsrc.net`, matching Cloudstream’s built-in VidSrc extractor.
+- Rebuilt package via `gradlew :app:make` (artifact 48055 octets, plugin version 6).
+
 GramFlix v1.4.0
 ---------------
 
