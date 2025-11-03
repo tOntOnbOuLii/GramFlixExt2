@@ -25,6 +25,7 @@ object RulesConfig {
         DEFAULT_URL,
         "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/rules.json"
     )
+    private val refreshLock = Any()
 
     @Volatile
     private var cached: JSONObject? = null
@@ -44,17 +45,34 @@ object RulesConfig {
         cached = try { JSONObject(jsonString) } catch (_: Throwable) { null }
     }
 
-    fun refreshFromNetwork(url: String = DEFAULT_URL) {
-        try {
+    fun refreshFromNetwork(url: String = DEFAULT_URL): Boolean {
+        return try {
             val text = httpGet(url)
             primeFromString(text)
-        } catch (_: Throwable) { }
+            cached != null
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    fun ensureLoaded(force: Boolean = false): Boolean {
+        if (!force && cached != null) return true
+        synchronized(refreshLock) {
+            if (!force && cached != null) return true
+            val urls = FALLBACK_URLS.distinct()
+            for (candidate in urls) {
+                if (refreshFromNetwork(candidate)) return true
+            }
+            return cached != null
+        }
     }
 
     fun getRules(slug: String): JSONObject? {
         val json = cached ?: return null
         return json.optJSONObject("rules")?.optJSONObject(slug)
     }
+
+    fun rulesObject(): JSONObject? = cached?.optJSONObject("rules")
 
     fun primeFromAssets(androidContext: android.content.Context, assetName: String = "rules.json") {
         try {

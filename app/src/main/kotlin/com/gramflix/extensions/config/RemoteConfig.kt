@@ -20,6 +20,7 @@ object RemoteConfig {
         // GitHub mirror (optional, updated by panel if GitHub sync enabled)
         "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/providers.json"
     )
+    private val refreshLock = Any()
 
     // Simple in-memory cache
     @Volatile
@@ -41,14 +42,16 @@ object RemoteConfig {
         val json = cached ?: return fallback
         val providers = json.optJSONObject("providers") ?: return fallback
         val item = providers.optJSONObject(key) ?: return fallback
-        return item.optString("baseUrl", fallback)
+        val value = item.optString("baseUrl").takeIf { it.isNotBlank() }
+        return value ?: fallback
     }
 
     fun getProviderNameOrNull(key: String, fallback: String? = null): String? {
         val json = cached ?: return fallback
         val providers = json.optJSONObject("providers") ?: return fallback
         val item = providers.optJSONObject(key) ?: return fallback
-        return item.optString("name", fallback)
+        val value = item.optString("name").takeIf { it.isNotBlank() }
+        return value ?: fallback
     }
 
     fun primeFromString(jsonString: String) {
@@ -60,11 +63,26 @@ object RemoteConfig {
     }
 
     // Try to refresh from network; swallow errors to avoid crashing the plugin when offline.
-    fun refreshFromNetwork(url: String = DEFAULT_URL) {
-        try {
+    fun refreshFromNetwork(url: String = DEFAULT_URL): Boolean {
+        return try {
             val text = httpGet(url)
             primeFromString(text)
-        } catch (_: Throwable) { }
+            cached != null
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    fun ensureLoaded(force: Boolean = false): Boolean {
+        if (!force && providersObject() != null) return true
+        synchronized(refreshLock) {
+            if (!force && providersObject() != null) return true
+            val urls = FALLBACK_URLS.distinct()
+            for (candidate in urls) {
+                if (refreshFromNetwork(candidate)) return true
+            }
+            return providersObject() != null
+        }
     }
 
     fun providersObject(): JSONObject? = cached?.optJSONObject("providers")

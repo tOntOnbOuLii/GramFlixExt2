@@ -1,15 +1,28 @@
 package com.gramflix.extensions.providers
 
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.HomePageList
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.gramflix.extensions.config.HostersConfig
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.ArrayList
 import java.util.LinkedHashSet
 
 class ConfigDrivenProvider : MainAPI() {
@@ -29,13 +42,14 @@ class ConfigDrivenProvider : MainAPI() {
 
     private fun parseRule(slug: String): Rule? {
         val r = RulesConfig.getRules(slug) ?: return null
+        val embed = (r.opt("embedSel") as? String)?.takeUnless { it.isBlank() }
         return Rule(
             r.optString("searchPath", "/search"),
             r.optString("searchParam", "q"),
             r.optString("itemSel", ""),
             r.optString("titleSel", ""),
             r.optString("urlSel", ""),
-            r.optString("embedSel", null)
+            embed
         ).takeIf { it.itemSel.isNotBlank() && it.urlSel.isNotBlank() }
     }
 
@@ -46,27 +60,50 @@ class ConfigDrivenProvider : MainAPI() {
         return if (at.size == 2) el.attr(at[1]).takeIf { it.isNotBlank() } else el.text().takeIf { it.isNotBlank() }
     }
 
+    private fun ensureRemoteConfigs() {
+        RemoteConfig.ensureLoaded()
+        RulesConfig.ensureLoaded()
+        HostersConfig.ensureLoaded()
+    }
+
+    private fun extractWithRule(
+        doc: Document,
+        baseUrl: String,
+        rule: Rule,
+        limit: Int = 30
+    ): List<SearchResponse> {
+        val seen = LinkedHashSet<String>()
+        val responses = ArrayList<SearchResponse>()
+        val cards = doc.select(rule.itemSel)
+        for (card in cards) {
+            val title = selectAttrOrText(card, rule.titleSel) ?: continue
+            val href = selectAttrOrText(card, rule.urlSel) ?: continue
+            val absUrl = resolveAgainst(baseUrl, href) ?: continue
+            if (!seen.add(absUrl)) continue
+            responses.add(newMovieSearchResponse(title, absUrl, TvType.Movie))
+            if (responses.size >= limit) break
+        }
+        return responses
+    }
+
     override suspend fun search(query: String): List<SearchResponse> {
-        val results = ConcurrentLinkedQueue<SearchResponse>()
-        val providers = RemoteConfig.providersObject()
-        providers?.keys()?.forEach { key ->
-            val slug = key as String
-            val item = providers.optJSONObject(slug) ?: return@forEach
-            val baseUrl = item.optString("baseUrl", null) ?: return@forEach
+        ensureRemoteConfigs()
+        val results = mutableListOf<SearchResponse>()
+        val providers = RemoteConfig.providersObject() ?: return emptyList()
+        val keys = providers.keys()
+        while (keys.hasNext()) {
+            val slug = keys.next()
+            val item = providers.optJSONObject(slug) ?: continue
+            val baseUrl = item.optString("baseUrl").takeIf { it.isNotBlank() } ?: continue
             val rule = parseRule(slug)
             val baseUri = runCatching { URI(baseUrl) }.getOrNull()
             val baseHost = baseUri?.host
             try {
-                val url = buildSearchUrl(baseUrl, rule, query) ?: return@forEach
+                val url = buildSearchUrl(baseUrl, rule, query) ?: continue
                 val res = app.get(url, referer = baseUrl)
                 val doc = res.document
                 if (rule != null) {
-                    doc.select(rule.itemSel).forEach { card ->
-                        val title = selectAttrOrText(card, rule.titleSel) ?: return@forEach
-                        val href = selectAttrOrText(card, rule.urlSel) ?: return@forEach
-                        val absUrl = resolveAgainst(baseUrl, href) ?: return@forEach
-                        results.add(newMovieSearchResponse(title, absUrl, TvType.Movie))
-                    }
+                    results.addAll(extractWithRule(doc, baseUrl, rule))
                 } else {
                     val seen = LinkedHashSet<String>()
                     val anchors = doc.select("a[href]")
@@ -82,9 +119,9 @@ class ConfigDrivenProvider : MainAPI() {
                         if (seen.size >= 30) break
                     }
                 }
-            } catch (_: Throwable) { /* ignore site errors */ }
+            } catch (_: Throwable) { /* ignore site errors */ continue }
         }
-        return results.toList()
+        return results
     }
 
     override suspend fun load(url: String): LoadResponse? {
@@ -125,7 +162,21 @@ class ConfigDrivenProvider : MainAPI() {
         if (rule != null) {
             val base = try { URI(baseUrl) } catch (_: Exception) { return null }
             val rawPath = rule.searchPath.ifBlank { "/" }
-            val path = if (rawPath.startsWith("/")) rawPath else "/$rawPath"
+
+            val replaced = when {
+                rawPath.contains("%s") -> rawPath.replace("%s", encodedQuery)
+                rawPath.contains("{query}") -> rawPath.replace("{query}", encodedQuery)
+                rawPath.endsWith("=") && rawPath.contains("?") -> rawPath + encodedQuery
+                else -> null
+            }
+            if (replaced != null) {
+                return resolveAgainst(base, replaced)
+            }
+
+            val path = when {
+                rawPath.startsWith("/") || rawPath.startsWith("?") -> rawPath
+                else -> "/$rawPath"
+            }
             val hasQuery = path.contains("?")
             val separator = when {
                 !hasQuery -> "?"
@@ -157,5 +208,32 @@ class ConfigDrivenProvider : MainAPI() {
         } catch (_: Exception) {
             null
         }
+    }
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        ensureRemoteConfigs()
+        val providers = RemoteConfig.providersObject() ?: return newHomePageResponse(emptyList(), hasNext = false)
+        val lists = ArrayList<HomePageList>()
+        val keys = providers.keys()
+        var processed = 0
+        val maxProviders = if (page <= 1) 5 else 0
+        while (keys.hasNext() && (maxProviders == 0 || processed < maxProviders)) {
+            val slug = keys.next()
+            val providerObj = providers.optJSONObject(slug) ?: continue
+            val baseUrl = providerObj.optString("baseUrl").takeIf { it.isNotBlank() } ?: continue
+            val rule = parseRule(slug) ?: continue
+            try {
+                val title = providerObj.optString("name", slug)
+                val doc = app.get(baseUrl, referer = baseUrl).document
+                val items = extractWithRule(doc, baseUrl, rule, limit = 20)
+                if (items.isNotEmpty()) {
+                    lists.add(HomePageList(title, items))
+                    processed++
+                }
+            } catch (_: Throwable) {
+                // ignore failed provider
+            }
+        }
+        return newHomePageResponse(lists, hasNext = false)
     }
 }
