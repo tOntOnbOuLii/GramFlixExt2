@@ -1,5 +1,6 @@
-GramFlix v1.2.0
+GramFlix v1.3.0
 
-- Recherche : titres nettoyes, jaquettes retrouvees et indication explicite de la source (nom du site).
-- Accueil : chaque fournisseur dispose de sa propre section (pagination 5 sites) alimentee via les pages d'origine.
-- Build: `:app:assembleRelease` + `:app:make` (nouvelle taille 29429 octets).
+- Accueil : cartes extraites via des sélecteurs robustes, résolutions d'URL améliorées et sections toujours peuplées.
+- Recherche : tri par pertinence (normalisation accent/majuscules) pour ne garder que les résultats liés à la requête.
+- Lecture : prise en charge des boutons AJAX (getxfield) et récupération automatique des iframes/hébergeurs effectifs.
+- Build : `:app:make` (nouvelle taille indiquée dans `plugins.json` après empaquetage).
