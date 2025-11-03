@@ -1,0 +1,16 @@
+# Codex Session State
+
+## Actions realisees (session en cours)
+- Generation/packaging `:app:make` valide (JDK 17 via `gradlew.bat` patch).
+- Publication du tag `v1.0.0` et creation de la release GitHub correspondante (`GramFlix v1.0.0`).
+- Televersement de l'asset `gramflix-all.cs3` dans la release (URL `releases/latest` utilisable par Cloudstream).
+- Ajout d'un placeholder `icon.png` pour satisfaire `repo.json`.
+- Migration du depot Cloudstream vers le manifeste v1 (`repo.json` + nouveau `plugins.json`) pour se conformer au schema `manifestVersion`.
+
+## Verifications externes
+- `repo.json`, `icon.png` et l'asset `gramflix-all.cs3` repondent en HTTP 200.
+
+## Points de vigilance / a faire
+- Tester l'ajout du depot dans Cloudstream (avec l'URL `https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/repo.json`) apres mise en cache du nouveau manifeste.
+- Nettoyer les avertissements de nullabilite (`optString`) dans le code si on veut des builds stricts.
+- Revoquer/retirer le token stocke dans `token.txt` une fois la validation terminee.
