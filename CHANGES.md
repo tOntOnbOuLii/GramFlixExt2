@@ -1,13 +1,20 @@
-GramFlix v1.3.0
+GramFlix v1.4.0
 ---------------
 
-- Search results are now ranked by normalized relevance (accents/stop-words cleaned) and deduplicated per provider.
-- Home page extraction uses resilient selectors, expanded attribute probing and records provider slugs for load steps.
-- Streaming links now follow `getxfield` AJAX flows to grab the actual iframe/hoster URLs before invoking extractors.
-- Packaging verified with `gradlew :app:make`.
+- Added IMDB-powered fallback search (suggestion API) with direct `vidsrc` embeds when legacy scrapers return nothing.
+- Home page now supports a curated IMDB carousel via `home.json` (assets + GitHub mirror) as a resilient fallback.
+- Load/link pipeline enriched with IMDb metadata caching and dataUrl JSON payload (slug + imdbId + poster/year).
+- Packaging verified with `gradlew :app:make` (artifact 48052 octets, plugin version 5).
 
-Historical Notes
-----------------
+Historical Notes (v1.3.0)
+-------------------------
+
+- Search results ranked by normalized relevance (accents/stop-words cleaned) and deduplicated per provider.
+- Home page extraction using resilient selectors, expanded attribute probing and provider slug tracking.
+- Streaming links following `getxfield` AJAX flows to capture iframe/hoster URLs before extractor dispatch.
+
+Legacy Notes
+------------
 
 - Added local fallback config at `app/src/main/assets/providers.json` preloaded by the plugin, with background refresh from a remote JSON (WebPanel/GitHub mirror).
 - Implemented `RemoteConfig.primeFromAssets` and made `refreshFromNetwork` non-fatal.
