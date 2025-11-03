@@ -1,5 +1,5 @@
-GramFlix v1.1.0
+GramFlix v1.2.0
 
-- Forcage du chargement des configs distantes (correction "Depot introuvable" et recherches vides).
-- Provider dynamique : recherche plus robuste + nouvelle page d'accueil sur 5 sites.
-- Build: `:app:assembleRelease` + `:app:make` (nouvelle taille 22253 octets).
+- Recherche : titres nettoyes, jaquettes retrouvees et indication explicite de la source (nom du site).
+- Accueil : chaque fournisseur dispose de sa propre section (pagination 5 sites) alimentee via les pages d'origine.
+- Build: `:app:assembleRelease` + `:app:make` (nouvelle taille 29429 octets).
