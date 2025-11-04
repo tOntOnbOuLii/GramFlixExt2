@@ -1,18 +1,19 @@
 # Codex Session State
 
 ## Modifications recentes
-- Configuration dynamique réduite au provider `1JOUR1FILM` pointant vers `https://1jour1film1025b.site/`.
-- `gramflix-1jour1film.cs3` généré (48 055 octets) à partir de `app/build/app.cs3` pour tests ciblés site par site.
-- `providers.json` (racine + assets) ne contient plus que l'entrée 1J1F.
+- Config dynamique limitee au provider `1JOUR1FILM` (`https://1jour1film1025b.site/`) pour la phase de tests site par site.
+- Paquet `gramflix-all.cs3` regenere (GramFlix v1.4.2 / plugin version 7) et copie dediee `gramflix-1jour1film.cs3`.
+- `providers.json` (racine + assets) ne contient plus que l entree 1J1F.
 
-## Tests / vérifications
-- OK `./gradlew.bat :app:make --rerun-tasks` → artefact Cloudstream régénéré.
-- Vérification manuelle : page d'accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` renvoient des cartes exploitables (sélecteur `.item` / `.poster`).
+## Tests / verifications
+- OK `./gradlew.bat :app:make --rerun-tasks` (artefact 48055 octets).
+- Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
-## À faire / suivi
-- Publier sur GitHub les JSON et l'artefact `gramflix-1jour1film.cs3`, puis valider dans Cloudstream (vider le cache de l'extension, tester accueil + recherche).
-- Après validation de 1J1F, répéter la procédure pour `anime-sama`.
-- Supprimer `token.txt` une fois toutes les publications terminées.
+## A faire / suivi
+- Publier la release GitHub GramFlix v1.4.2 (remplacer `gramflix-all.cs3`, ajouter `gramflix-1jour1film.cs3` si souhaite).
+- Tester dans Cloudstream (vider le cache de l extension, verifier accueil et recherche).
+- Une fois 1J1F valide, lancer la meme sequence pour `anime-sama`.
+- Supprimer `token.txt` apres les publications.
 
-## Notes héritées
-- Historique release `GramFlix v1.4.1` (plugin v6) disponible dans les commits précédents : `gramflix-all.cs3`, `plugins.json`, `CHANGES.md`, `release_notes.md` déjà alignés et publiés.
+## Notes heritage
+- Releases precedentes (v1.4.1 et anterieures) deja alignees sur plugin version 6.
