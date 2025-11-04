@@ -1,9 +1,9 @@
 GramFlix v1.4.2
 ---------------
 
-- Configuration dynamique restreinte à `1JOUR1FILM` pour campagne de tests site par site (baseUrl `https://1jour1film1025b.site/`).
-- Fourniture d'un paquet dédié (`gramflix-1jour1film.cs3`) + mise à jour de `gramflix-all.cs3`.
-- Build validé via `gradlew :app:make` (artefact 48055 octets, plugin version 7).
+- Configuration dynamique restreinte a `1JOUR1FILM` pour campagne de tests site par site (baseUrl `https://1jour1film1025b.site/`).
+- Fourniture d'un paquet dedie (`gramflix-1jour1film.cs3`) + mise a jour de `gramflix-all.cs3`.
+- Build valide via `gradlew :app:make` (artefact 48055 octets, plugin version 7).
 
 GramFlix v1.4.1
 ---------------
