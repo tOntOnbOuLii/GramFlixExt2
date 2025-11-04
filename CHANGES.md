@@ -1,3 +1,10 @@
+GramFlix v1.4.6
+---------------
+
+- Récupère les synopsis 1JOUR1FILM (scraping direct + fallback API WordPress) pour les afficher dans Cloudstream.
+- Accueil Cloudstream adossé à l’API WordPress : sections Films/Séries populaires, derniers films, séries, saisons et épisodes.
+- Rebuilt package (`:app:make`, artefact 63971 octets, plugin version 11).
+
 GramFlix v1.4.5
 ---------------
 

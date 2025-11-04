@@ -1,3 +1,9 @@
+GramFlix v1.4.6
+
+- Ajoute la récupération automatique des synopsis via la page et l’API WordPress pour alimenter les fiches Cloudstream.
+- Alimente l’accueil Cloudstream en direct depuis l’API 1JOUR1FILM (populaires, derniers films/séries/saisons/épisodes).
+- Build : `:app:make` (plugin version 11, artefact 63971 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.5
 
 - Déplie les players `api.voirfilm.cam` pour récupérer automatiquement les miroirs (Uqload, Voe, Netu, Dood, etc.) côté Cloudstream.

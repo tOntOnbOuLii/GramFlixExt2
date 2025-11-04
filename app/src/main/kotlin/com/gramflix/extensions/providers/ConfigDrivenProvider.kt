@@ -17,9 +17,11 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
 import com.gramflix.extensions.config.HomeConfig
+import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.Jsoup
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -1006,11 +1008,21 @@ class ConfigDrivenProvider : MainAPI() {
         val slice = metas.drop(startIndex).take(pageSize)
         val lists = mutableListOf<HomePageList>()
         for (meta in slice) {
-            val rule = meta.rule ?: continue
+            val rule = meta.rule
             try {
+                val dedupe = hashSetOf<String>()
+                var handled = false
+                if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                    val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
+                    if (apiSections.isNotEmpty()) {
+                        lists.addAll(apiSections)
+                        handled = true
+                    }
+                }
+                if (handled) continue
+                val effectiveRule = rule ?: continue
                 val response = app.get(meta.baseUrl, referer = meta.baseUrl)
                 val doc = response.document
-                val dedupe = hashSetOf<String>()
                 val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
                 val responses = items.map { it.response }
                 if (responses.isNotEmpty()) {
@@ -1079,6 +1091,71 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private fun sanitizeHtmlText(html: String?): String? {
+        if (html.isNullOrBlank()) return null
+        return Jsoup.parse(html).text().trim().takeUnless { it.isBlank() }
+    }
+
+    private fun extractDescriptionFromDoc(doc: Document): String? {
+        val selectors = listOf(
+            "div.wp-content p",
+            "div.content p",
+            "div.post-content p",
+            "div.description p",
+            "div.entry-content p",
+            "section#info p",
+            "div#info p",
+            "article p"
+        )
+        for (selector in selectors) {
+            val text = doc.select(selector)
+                .mapNotNull { it.text().trim().takeIf { value -> value.isNotBlank() } }
+                .firstOrNull()
+            if (!text.isNullOrBlank()) {
+                return text
+            }
+        }
+        val metaOg = doc.selectFirst("meta[property=og:description]")?.attr("content")
+        return metaOg?.trim()?.takeUnless { it.isBlank() }
+    }
+
+    private fun detectWordpressType(pageUrl: String): String? {
+        val lower = pageUrl.lowercase(Locale.ROOT)
+        return when {
+            lower.contains("/films/") || lower.contains("/movies/") -> "movies"
+            lower.contains("/tvshows/") || lower.contains("/series/") -> "tvshows"
+            lower.contains("/seasons/") -> "seasons"
+            lower.contains("/episodes/") -> "episodes"
+            else -> null
+        }
+    }
+
+    private fun resolveApiBase(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        return runCatching {
+            val uri = URI(url)
+            val port = if (uri.port != -1) ":${uri.port}" else ""
+            "${uri.scheme}://${uri.host}$port"
+        }.getOrNull()
+    }
+
+    private suspend fun fetchWordpressDescription(pageUrl: String, baseUrl: String?): String? {
+        val type = detectWordpressType(pageUrl) ?: return null
+        val apiBase = resolveApiBase(baseUrl ?: pageUrl) ?: return null
+        val slug = runCatching {
+            val path = URI(pageUrl).path.trim('/')
+            path.substringAfterLast('/')
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
+        val apiUrl = "$apiBase/wp-json/wp/v2/$type?slug=$slug&_embed=1"
+        return runCatching {
+            val response = app.get(apiUrl, referer = apiBase)
+            val array = JSONArray(response.text)
+            val first = array.optJSONObject(0) ?: return@runCatching null
+            val description = sanitizeHtmlText(first.optJSONObject("content")?.optString("rendered"))
+            description
+        }.getOrNull()
+    }
+
     override suspend fun load(url: String): LoadResponse? {
         return try {
             if (url.startsWith("imdb://")) {
@@ -1108,10 +1185,15 @@ class ConfigDrivenProvider : MainAPI() {
                 rememberSlugForUrl(url, meta.slug)
             }
             val referer = meta?.baseUrl ?: url
-            val doc = app.get(url, referer = referer).document
+            val response = app.get(url, referer = referer)
+            val doc = response.document
+            val description = extractDescriptionFromDoc(doc)
+                ?: fetchWordpressDescription(url, meta?.baseUrl ?: url)
             val title = doc.selectFirst("title")?.text()?.trim()?.ifBlank { null } ?: meta?.displayName ?: name
             val dataPayload = encodeLoadData(url, meta?.slug)
-            newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) { }
+            newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) {
+                description?.let { plot = it }
+            }
         } catch (_: Throwable) {
             null
         }
@@ -1211,6 +1293,75 @@ class ConfigDrivenProvider : MainAPI() {
             }.getOrElse { emptyList() }
         }
         return emptyList()
+    }
+
+    private suspend fun fetchWpCollection(
+        meta: ProviderMeta,
+        apiBase: String,
+        type: String,
+        perPage: Int
+    ): List<SearchResponse> {
+        return runCatching {
+            val url = "${apiBase.trimEnd('/')}/wp-json/wp/v2/$type?per_page=$perPage&_embed=1"
+            val response = app.get(url, referer = apiBase)
+            val array = JSONArray(response.text)
+            val seen = hashSetOf<String>()
+            val results = mutableListOf<SearchResponse>()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val link = obj.optString("link").takeIf { it.isNotBlank() } ?: continue
+                if (!seen.add(link)) continue
+                val titleHtml = obj.optJSONObject("title")?.optString("rendered")
+                val title = sanitizeHtmlText(titleHtml) ?: continue
+                val embedded = obj.optJSONObject("_embedded")
+                val poster = embedded
+                    ?.optJSONArray("wp:featuredmedia")
+                    ?.optJSONObject(0)
+                    ?.optString("source_url")
+                    ?.takeIf { it.isNotBlank() }
+                val item = createSearchItem(
+                    meta = meta,
+                    title = title,
+                    url = link,
+                    poster = poster,
+                    includeProvider = false,
+                    query = null
+                ) ?: continue
+                results += item.response
+                if (results.size >= perPage) break
+            }
+            results
+        }.getOrElse { emptyList() }
+    }
+
+    private suspend fun fetchOneJourHomeFromApi(meta: ProviderMeta): List<HomePageList> {
+        val apiBase = resolveApiBase(meta.baseUrl) ?: return emptyList()
+        val movies = fetchWpCollection(meta, apiBase, "movies", 20)
+        val shows = fetchWpCollection(meta, apiBase, "tvshows", 20)
+        val seasons = fetchWpCollection(meta, apiBase, "seasons", 20)
+        val episodes = fetchWpCollection(meta, apiBase, "episodes", 20)
+
+        val sections = mutableListOf<HomePageList>()
+
+        val popular = mutableListOf<SearchResponse>()
+        movies.take(10).forEach { if (popular.size < 20) popular += it }
+        shows.take(10).forEach { if (popular.size < 20) popular += it }
+        if (popular.isNotEmpty()) {
+            sections += HomePageList("Films/Séries Populaires", popular)
+        }
+        if (movies.isNotEmpty()) {
+            sections += HomePageList("Derniers films", movies)
+        }
+        if (shows.isNotEmpty()) {
+            sections += HomePageList("Dernières séries", shows)
+        }
+        if (seasons.isNotEmpty()) {
+            sections += HomePageList("Dernières saisons", seasons)
+        }
+        if (episodes.isNotEmpty()) {
+            sections += HomePageList("Derniers épisodes", episodes)
+        }
+        return sections
     }
 
     private fun buildSearchUrl(baseUrl: String, rule: Rule?, query: String): String? {
