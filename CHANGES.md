@@ -1,3 +1,10 @@
+GramFlix v1.4.3
+---------------
+
+- Support dynamic players for 1JOUR1FILM via `doo_player_ajax`, enabling source selection in Cloudstream.
+- Home page fallback now scrapes 1JOUR1FILM sections when remote rules return empty results.
+- Rebuilt package (`:app:make`, artefact 48055 octets, plugin version 8).
+
 GramFlix v1.4.2
 ---------------
 
