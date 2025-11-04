@@ -1172,8 +1172,17 @@ class ConfigDrivenProvider : MainAPI() {
                     }
                 }
             }
+            val prioritizedCandidates = linkedSetOf<String>()
+            candidates.forEach { candidate ->
+                val expanded = expandEmbedSources(candidate, pageUrl)
+                if (expanded.isNotEmpty()) {
+                    expanded.forEach { prioritizedCandidates += it }
+                } else {
+                    prioritizedCandidates += candidate
+                }
+            }
             var success = false
-            candidates.take(25).forEach { link ->
+            prioritizedCandidates.take(25).forEach { link ->
                 try {
                     loadExtractor(link, pageUrl, subtitleCallback, callback)
                     success = true
@@ -1184,6 +1193,24 @@ class ConfigDrivenProvider : MainAPI() {
         } catch (_: Throwable) {
             false
         }
+    }
+
+    private suspend fun expandEmbedSources(embedUrl: String, referer: String): List<String> {
+        val lowered = embedUrl.lowercase(Locale.ROOT)
+        if (lowered.contains("api.voirfilm.cam") || (lowered.contains("voirfilm.") && lowered.contains("/film/"))) {
+            return runCatching {
+                val response = app.get(embedUrl, referer = referer)
+                val doc = response.document
+                doc.select(".embed .servers .content li[data-url]")
+                    .mapNotNull { element ->
+                        val raw = element.attr("data-url").trim().takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                        val resolved = resolveAgainst(embedUrl, raw) ?: raw
+                        if (resolved.startsWith("http", ignoreCase = true)) resolved else null
+                    }
+                    .distinct()
+            }.getOrElse { emptyList() }
+        }
+        return emptyList()
     }
 
     private fun buildSearchUrl(baseUrl: String, rule: Rule?, query: String): String? {
