@@ -4,6 +4,7 @@
 - Typage dynamique des listes (WordPress + fallback) pour distinguer films, series et anime dans Cloudstream.
 - Sections d'accueil 1J1F alimentees directement via l'API WordPress (populaires, derniers films/series/saisons/episodes) avec titres ASCII.
 - Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.7 (plugin version 12, 65305 octets).
+- Release GitHub GramFlix v1.4.7 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 12).
 - Synopses 1JOUR1FILM ajoutes (scraping + fallback WordPress) pour alimenter les fiches Cloudstream.
 - Deplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, ...) directement dans Cloudstream.
 - Fallback DooPlay : bascule automatique sur `/wp-admin/admin-ajax.php` lorsque `dtAjax` est absent (1JOUR1FILM).
@@ -17,11 +18,10 @@
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi
-- Release GitHub GramFlix v1.4.7 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 12).
 - Mettre a jour les releases v1.4.2/v1.4.3 si toujours necessaire (remplacement artefacts uniquement).
 - Tester dans Cloudstream (vider le cache de l'extension, verifier accueil, recherche et lecture multi-sources).
 - Une fois 1J1F valide, lancer la meme sequence pour `anime-sama`.
-- Supprimer `token.txt` apres les publications.
+- Prevoir un nouveau token GitHub si autre publication necessaire (fichier local supprime).
 
 ## Notes heritage
 - Releases precedentes (v1.4.1 et anterieures) deja alignees sur plugin version 6.
