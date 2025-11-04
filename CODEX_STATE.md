@@ -5,7 +5,7 @@
 - Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.8 (plugin version 13, 66145 octets).
 - Typage dynamique des listes (WordPress + fallback) pour distinguer films, series et anime dans Cloudstream.
 - Sections d'accueil 1J1F alimentees directement via l'API WordPress (populaires, derniers films/series/saisons/episodes) avec titres ASCII.
-- Release GitHub GramFlix v1.4.7 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 12).
+- Release GitHub GramFlix v1.4.8 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 13).
 - Synopses 1JOUR1FILM ajoutes (scraping + fallback WordPress) pour alimenter les fiches Cloudstream.
 - Deplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, ...) directement dans Cloudstream.
 - Fallback DooPlay : bascule automatique sur `/wp-admin/admin-ajax.php` lorsque `dtAjax` est absent (1JOUR1FILM).
