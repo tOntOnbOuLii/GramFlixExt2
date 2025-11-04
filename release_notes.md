@@ -1,3 +1,9 @@
+GramFlix v1.4.9
+
+- Emule des entetes complets (Sec-Fetch, Origin, cache-control) sur les appels WordPress/Dooplay pour supprimer les retours vides sur l'accueil Cloudstream.
+- Bascule automatiquement sur le fallback `home.json` lorsque la configuration distante est manquante, garantissant au moins des sections IMDB.
+- Build : `:app:make` (plugin version 14, artefact 67136 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.8
 
 - Force des entetes navigateur (User-Agent, Accept, Accept-Language) sur les appels WordPress et AJAX pour debloquer l'accueil Cloudstream 1JOUR1FILM.

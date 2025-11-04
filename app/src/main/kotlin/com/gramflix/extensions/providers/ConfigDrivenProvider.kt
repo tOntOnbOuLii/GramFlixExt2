@@ -100,11 +100,86 @@ class ConfigDrivenProvider : MainAPI() {
         private const val ACCEPT_LANGUAGE = "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-    private fun buildHeaders(accept: String, extra: Map<String, String> = emptyMap()): Map<String, String> {
-        val headers = LinkedHashMap<String, String>(4 + extra.size)
+    private fun originFrom(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        return runCatching {
+            val uri = URI(url)
+            val scheme = uri.scheme ?: return null
+            val host = uri.host ?: return null
+            val portPart = if (uri.port == -1) "" else ":${uri.port}"
+            "$scheme://$host$portPart"
+        }.getOrNull()
+    }
+
+    private fun secFetchSite(targetUrl: String, referer: String?): String {
+        if (referer.isNullOrBlank()) return "none"
+        val targetOrigin = originFrom(targetUrl) ?: return "cross-site"
+        val refererOrigin = originFrom(referer) ?: return "cross-site"
+        return if (targetOrigin.equals(refererOrigin, ignoreCase = true)) {
+            "same-origin"
+        } else {
+            "cross-site"
+        }
+    }
+
+    private fun buildCommonHeaders(): LinkedHashMap<String, String> {
+        val headers = LinkedHashMap<String, String>(6)
         headers["User-Agent"] = BROWSER_USER_AGENT
-        headers["Accept"] = accept
         headers["Accept-Language"] = ACCEPT_LANGUAGE
+        headers["Cache-Control"] = "no-cache"
+        headers["Pragma"] = "no-cache"
+        headers["Connection"] = "keep-alive"
+        return headers
+    }
+
+    private fun buildHtmlHeaders(
+        targetUrl: String,
+        referer: String?,
+        extra: Map<String, String> = emptyMap()
+    ): Map<String, String> {
+        val headers = buildCommonHeaders()
+        headers["Accept"] = ACCEPT_HTML
+        headers["Upgrade-Insecure-Requests"] = "1"
+        headers["Sec-Fetch-Dest"] = "document"
+        headers["Sec-Fetch-Mode"] = "navigate"
+        headers["Sec-Fetch-Site"] = secFetchSite(targetUrl, referer)
+        headers["Sec-Fetch-User"] = "?1"
+        headers.putAll(extra)
+        return headers
+    }
+
+    private fun buildJsonHeaders(
+        targetUrl: String,
+        referer: String?,
+        extra: Map<String, String> = emptyMap()
+    ): Map<String, String> {
+        val headers = buildCommonHeaders()
+        headers["Accept"] = ACCEPT_JSON
+        headers["Sec-Fetch-Dest"] = "empty"
+        headers["Sec-Fetch-Mode"] = "cors"
+        headers["Sec-Fetch-Site"] = secFetchSite(targetUrl, referer)
+        val origin = originFrom(referer) ?: originFrom(targetUrl)
+        if (origin != null) {
+            headers["Origin"] = origin
+        }
+        headers.putAll(extra)
+        return headers
+    }
+
+    private fun buildAjaxHeaders(
+        targetUrl: String,
+        referer: String?,
+        extra: Map<String, String> = emptyMap()
+    ): Map<String, String> {
+        val headers = buildCommonHeaders()
+        headers["Accept"] = ACCEPT_AJAX
+        headers["Sec-Fetch-Dest"] = "empty"
+        headers["Sec-Fetch-Mode"] = "cors"
+        headers["Sec-Fetch-Site"] = secFetchSite(targetUrl, referer)
+        val origin = originFrom(referer) ?: originFrom(targetUrl)
+        if (origin != null) {
+            headers["Origin"] = origin
+        }
         headers.putAll(extra)
         return headers
     }
@@ -113,13 +188,13 @@ class ConfigDrivenProvider : MainAPI() {
         url: String,
         referer: String? = null,
         extraHeaders: Map<String, String> = emptyMap()
-    ) = app.get(url, referer = referer, headers = buildHeaders(ACCEPT_HTML, extraHeaders))
+    ) = app.get(url, referer = referer, headers = buildHtmlHeaders(url, referer, extraHeaders))
 
     private suspend fun fetchJson(
         url: String,
         referer: String? = null,
         extraHeaders: Map<String, String> = emptyMap()
-    ) = app.get(url, referer = referer, headers = buildHeaders(ACCEPT_JSON, extraHeaders))
+    ) = app.get(url, referer = referer, headers = buildJsonHeaders(url, referer, extraHeaders))
 
     private val whitespaceRegex = Regex("\\s+")
     private val qualityTokens = setOf(
@@ -774,8 +849,9 @@ class ConfigDrivenProvider : MainAPI() {
                             "nume" to nume,
                             "type" to type
                         ),
-                        headers = buildHeaders(
-                            ACCEPT_AJAX,
+                        headers = buildAjaxHeaders(
+                            ajaxUrl,
+                            pageUrl,
                             mapOf(
                                 "X-Requested-With" to "XMLHttpRequest",
                                 "Content-Type" to "application/x-www-form-urlencoded; charset=UTF-8"
@@ -1084,7 +1160,13 @@ class ConfigDrivenProvider : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         ensureRemoteConfigs()
         val metas = gatherProviders()
-        if (metas.isEmpty()) return newHomePageResponse(emptyList(), hasNext = false)
+        if (metas.isEmpty()) {
+            val fallbackLists = loadHomeFallback()
+            if (fallbackLists.isNotEmpty()) {
+                return newHomePageResponse(fallbackLists, hasNext = false)
+            }
+            return newHomePageResponse(emptyList(), hasNext = false)
+        }
         val pageSize = 5
         val startIndex = max(0, (page - 1) * pageSize)
         if (startIndex >= metas.size) return newHomePageResponse(emptyList(), hasNext = false)
