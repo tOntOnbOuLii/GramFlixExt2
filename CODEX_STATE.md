@@ -16,7 +16,7 @@
 
 ## Tests / verifications
 - OK `./gradlew.bat :app:compileDebugKotlin`
-- OK `./gradlew.bat :app:make` (artefacts 67136 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
+- OK `./gradlew.bat :app:make` (artefacts 67129 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi
@@ -27,6 +27,5 @@
 
 ## Notes heritage
 - Releases precedentes (v1.4.1 et anterieures) deja alignees sur plugin version 6.
-
 
 
