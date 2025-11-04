@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
@@ -12,6 +13,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.gramflix.extensions.config.RemoteConfig
@@ -36,7 +38,7 @@ class ConfigDrivenProvider : MainAPI() {
     override var name = "GramFlix Dynamic"
     override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
-    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
 
     init {
         sequentialMainPage = true
@@ -202,7 +204,7 @@ class ConfigDrivenProvider : MainAPI() {
         if (text.isEmpty()) return ""
         val words = text.split(' ')
         val filtered = words.mapNotNull { word ->
-            val trimmed = word.trim('-', '/', '\\', '[', ']', '(', ')', '.', ':', ';', ',', '•', '|')
+            val trimmed = word.trim('-', '/', '\\', '[', ']', '(', ')', '.', ':', ';', ',', '|')
             if (trimmed.isBlank()) {
                 null
             } else {
@@ -217,7 +219,7 @@ class ConfigDrivenProvider : MainAPI() {
         }
         val candidate = filtered.joinToString(" ").trim()
         val result = if (candidate.isNotBlank()) candidate else text
-        return result.replace(Regex("\\s+"), " ").trim('-', '•', '|', ':', '.', ';', ',')
+        return result.replace(Regex("\\s+"), " ").trim('-', '|', ':', '.', ';', ',')
     }
 
     private fun chooseTitle(candidates: List<String>, providerName: String, query: String?): String? {
@@ -768,13 +770,31 @@ class ConfigDrivenProvider : MainAPI() {
         return match.value.toIntOrNull()
     }
 
+    private fun determineTvType(meta: ProviderMeta?, url: String, element: Element? = null): TvType {
+        if (meta?.slug?.contains("anime", ignoreCase = true) == true) {
+            return TvType.Anime
+        }
+        if (element != null) {
+            val classes = element.classNames().map { it.lowercase(Locale.ROOT) }
+            if (classes.any { it.contains("tvshows") || it.contains("tvshow") || it.contains("season") || it.contains("episode") }) {
+                return TvType.TvSeries
+            }
+        }
+        val slug = url.lowercase(Locale.ROOT)
+        return when {
+            slug.contains("/tvshows/") || slug.contains("/serie") || slug.contains("/episode") || slug.contains("/season") -> TvType.TvSeries
+            else -> TvType.Movie
+        }
+    }
+
     private fun createSearchItem(
         meta: ProviderMeta,
         title: String,
         url: String,
         poster: String?,
         includeProvider: Boolean,
-        query: String?
+        query: String?,
+        tvType: TvType = TvType.Movie
     ): SearchItem? {
         rememberSlugForUrl(url, meta.slug)
         val displayTitle = if (includeProvider) {
@@ -782,13 +802,21 @@ class ConfigDrivenProvider : MainAPI() {
         } else {
             title
         }
-        val response = newMovieSearchResponse(displayTitle, url, TvType.Movie)
+        val resolvedType = when (tvType) {
+            TvType.Anime -> TvType.Anime
+            TvType.TvSeries -> TvType.TvSeries
+            else -> TvType.Movie
+        }
+        val response = when (resolvedType) {
+            TvType.TvSeries, TvType.Anime -> newTvSeriesSearchResponse(displayTitle, url, resolvedType)
+            else -> newMovieSearchResponse(displayTitle, url, resolvedType)
+        }
         if (!poster.isNullOrBlank()) {
             response.posterUrl = poster
         }
         val year = extractYearFrom(title)
-        if (year != null) {
-            response.year = year
+        if (year != null && resolvedType == TvType.Movie) {
+            (response as? MovieSearchResponse)?.year = year
         }
         val score = computeMatchScore(title, query)
         if (!query.isNullOrBlank() && score <= 0) return null
@@ -847,7 +875,16 @@ class ConfigDrivenProvider : MainAPI() {
             val title = resolveTitle(card, rule, meta.displayName, query) ?: continue
             if (!query.isNullOrBlank() && !titleMatchesQuery(title, query)) continue
             val poster = extractPoster(card, pageBase)
-            val item = createSearchItem(meta, title, href, poster, includeProvider, query)
+            val tvType = determineTvType(meta, href, card)
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = href,
+                poster = poster,
+                includeProvider = includeProvider,
+                query = query,
+                tvType = tvType
+            )
             if (item != null) {
                 responses += item
             }
@@ -899,13 +936,15 @@ class ConfigDrivenProvider : MainAPI() {
                         .map { resolveAgainst(pageBase, it) ?: it }
                         .firstOrNull()
                 }
+                val tvType = determineTvType(meta, href, article)
                 val item = createSearchItem(
                     meta = meta,
                     title = titleText,
                     url = href,
                     poster = poster,
                     includeProvider = false,
-                    query = null
+                    query = null,
+                    tvType = tvType
                 )
                 if (item != null) {
                     responses += item.response
@@ -946,7 +985,16 @@ class ConfigDrivenProvider : MainAPI() {
             val normalizedResolved = canonicalizeUrl(resolved)
             val dedupeKey = "${meta.slug}::$normalizedResolved"
             if (!dedupe.add(dedupeKey)) continue
-            val item = createSearchItem(meta, title, resolved, null, includeProvider, query)
+            val tvType = determineTvType(meta, resolved, anchor)
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = resolved,
+                poster = null,
+                includeProvider = includeProvider,
+                query = query,
+                tvType = tvType
+            )
             if (item != null) {
                 responses += item
             }
@@ -1299,7 +1347,8 @@ class ConfigDrivenProvider : MainAPI() {
         meta: ProviderMeta,
         apiBase: String,
         type: String,
-        perPage: Int
+        perPage: Int,
+        tvType: TvType
     ): List<SearchResponse> {
         return runCatching {
             val url = "${apiBase.trimEnd('/')}/wp-json/wp/v2/$type?per_page=$perPage&_embed=1"
@@ -1325,7 +1374,8 @@ class ConfigDrivenProvider : MainAPI() {
                     url = link,
                     poster = poster,
                     includeProvider = false,
-                    query = null
+                    query = null,
+                    tvType = tvType
                 ) ?: continue
                 results += item.response
                 if (results.size >= perPage) break
@@ -1336,10 +1386,10 @@ class ConfigDrivenProvider : MainAPI() {
 
     private suspend fun fetchOneJourHomeFromApi(meta: ProviderMeta): List<HomePageList> {
         val apiBase = resolveApiBase(meta.baseUrl) ?: return emptyList()
-        val movies = fetchWpCollection(meta, apiBase, "movies", 20)
-        val shows = fetchWpCollection(meta, apiBase, "tvshows", 20)
-        val seasons = fetchWpCollection(meta, apiBase, "seasons", 20)
-        val episodes = fetchWpCollection(meta, apiBase, "episodes", 20)
+        val movies = fetchWpCollection(meta, apiBase, "movies", 20, TvType.Movie)
+        val shows = fetchWpCollection(meta, apiBase, "tvshows", 20, TvType.TvSeries)
+        val seasons = fetchWpCollection(meta, apiBase, "seasons", 20, TvType.TvSeries)
+        val episodes = fetchWpCollection(meta, apiBase, "episodes", 20, TvType.TvSeries)
 
         val sections = mutableListOf<HomePageList>()
 
@@ -1347,19 +1397,19 @@ class ConfigDrivenProvider : MainAPI() {
         movies.take(10).forEach { if (popular.size < 20) popular += it }
         shows.take(10).forEach { if (popular.size < 20) popular += it }
         if (popular.isNotEmpty()) {
-            sections += HomePageList("Films/Séries Populaires", popular)
+            sections += HomePageList("Films/Series Populaires", popular)
         }
         if (movies.isNotEmpty()) {
             sections += HomePageList("Derniers films", movies)
         }
         if (shows.isNotEmpty()) {
-            sections += HomePageList("Dernières séries", shows)
+            sections += HomePageList("Dernieres series", shows)
         }
         if (seasons.isNotEmpty()) {
-            sections += HomePageList("Dernières saisons", seasons)
+            sections += HomePageList("Dernieres saisons", seasons)
         }
         if (episodes.isNotEmpty()) {
-            sections += HomePageList("Derniers épisodes", episodes)
+            sections += HomePageList("Derniers episodes", episodes)
         }
         return sections
     }
