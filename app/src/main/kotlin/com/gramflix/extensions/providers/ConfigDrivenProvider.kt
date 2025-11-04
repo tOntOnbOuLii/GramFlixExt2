@@ -90,6 +90,37 @@ class ConfigDrivenProvider : MainAPI() {
         val year: Int?
     )
 
+    companion object {
+        private const val BROWSER_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+        private const val ACCEPT_HTML =
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        private const val ACCEPT_JSON = "application/json, text/plain, */*"
+        private const val ACCEPT_AJAX = "application/json, text/javascript, */*;q=0.01"
+        private const val ACCEPT_LANGUAGE = "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+    }
+
+    private fun buildHeaders(accept: String, extra: Map<String, String> = emptyMap()): Map<String, String> {
+        val headers = LinkedHashMap<String, String>(4 + extra.size)
+        headers["User-Agent"] = BROWSER_USER_AGENT
+        headers["Accept"] = accept
+        headers["Accept-Language"] = ACCEPT_LANGUAGE
+        headers.putAll(extra)
+        return headers
+    }
+
+    private suspend fun fetchHtml(
+        url: String,
+        referer: String? = null,
+        extraHeaders: Map<String, String> = emptyMap()
+    ) = app.get(url, referer = referer, headers = buildHeaders(ACCEPT_HTML, extraHeaders))
+
+    private suspend fun fetchJson(
+        url: String,
+        referer: String? = null,
+        extraHeaders: Map<String, String> = emptyMap()
+    ) = app.get(url, referer = referer, headers = buildHeaders(ACCEPT_JSON, extraHeaders))
+
     private val whitespaceRegex = Regex("\\s+")
     private val qualityTokens = setOf(
         "HDLIGHT", "HD-LIGHT", "HDCAM", "CAM", "TRUEFRENCH", "FRENCH", "MULTI", "MULTI-VF",
@@ -730,7 +761,7 @@ class ConfigDrivenProvider : MainAPI() {
                     val api = config.playerApi ?: return null
                     val normalizedApi = if (api.endsWith("/")) api.dropLast(1) else api
                     val target = "$normalizedApi/$postId/$type/$nume"
-                    app.get(target, referer = pageUrl).text
+                    fetchJson(target, referer = pageUrl).text
                 }
                 else -> {
                     val ajaxUrl = config.url
@@ -743,8 +774,12 @@ class ConfigDrivenProvider : MainAPI() {
                             "nume" to nume,
                             "type" to type
                         ),
-                        headers = mapOf(
-                            "X-Requested-With" to "XMLHttpRequest"
+                        headers = buildHeaders(
+                            ACCEPT_AJAX,
+                            mapOf(
+                                "X-Requested-With" to "XMLHttpRequest",
+                                "Content-Type" to "application/x-www-form-urlencoded; charset=UTF-8"
+                            )
                         )
                     ).text
                 }
@@ -1012,7 +1047,7 @@ class ConfigDrivenProvider : MainAPI() {
         for (meta in metas) {
             try {
                 val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
-                val response = app.get(url, referer = meta.baseUrl)
+                val response = fetchHtml(url, referer = meta.baseUrl)
                 val doc = response.document
                 val items = if (meta.rule != null) {
                     extractWithRule(meta, doc, query, dedupe, limit = 25, includeProvider = true)
@@ -1069,7 +1104,7 @@ class ConfigDrivenProvider : MainAPI() {
                 }
                 if (handled) continue
                 val effectiveRule = rule ?: continue
-                val response = app.get(meta.baseUrl, referer = meta.baseUrl)
+                val response = fetchHtml(meta.baseUrl, referer = meta.baseUrl)
                 val doc = response.document
                 val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
                 val responses = items.map { it.response }
@@ -1196,7 +1231,7 @@ class ConfigDrivenProvider : MainAPI() {
         }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
         val apiUrl = "$apiBase/wp-json/wp/v2/$type?slug=$slug&_embed=1"
         return runCatching {
-            val response = app.get(apiUrl, referer = apiBase)
+            val response = fetchJson(apiUrl, referer = apiBase)
             val array = JSONArray(response.text)
             val first = array.optJSONObject(0) ?: return@runCatching null
             val description = sanitizeHtmlText(first.optJSONObject("content")?.optString("rendered"))
@@ -1233,7 +1268,7 @@ class ConfigDrivenProvider : MainAPI() {
                 rememberSlugForUrl(url, meta.slug)
             }
             val referer = meta?.baseUrl ?: url
-            val response = app.get(url, referer = referer)
+            val response = fetchHtml(url, referer = referer)
             val doc = response.document
             val description = extractDescriptionFromDoc(doc)
                 ?: fetchWordpressDescription(url, meta?.baseUrl ?: url)
@@ -1275,7 +1310,7 @@ class ConfigDrivenProvider : MainAPI() {
                 rememberSlugForUrl(pageUrl, meta.slug)
             }
             val referer = meta?.baseUrl ?: pageUrl
-            val response = app.get(pageUrl, referer = referer)
+            val response = fetchHtml(pageUrl, referer = referer)
             val doc = response.document
             val ajaxConfig = parseAjaxConfig(doc, pageUrl)
             val ajaxEmbeds = fetchAjaxEmbeds(doc, pageUrl, ajaxConfig)
@@ -1289,7 +1324,7 @@ class ConfigDrivenProvider : MainAPI() {
             if (ajaxRequests.isNotEmpty()) {
                 ajaxRequests.forEach { request ->
                     try {
-                        val ajaxResponse = app.get(request.url, referer = request.referer)
+                        val ajaxResponse = fetchHtml(request.url, referer = request.referer)
                         if (meta != null) {
                             rememberSlugForUrl(request.url, meta.slug)
                         }
@@ -1329,7 +1364,7 @@ class ConfigDrivenProvider : MainAPI() {
         val lowered = embedUrl.lowercase(Locale.ROOT)
         if (lowered.contains("api.voirfilm.cam") || (lowered.contains("voirfilm.") && lowered.contains("/film/"))) {
             return runCatching {
-                val response = app.get(embedUrl, referer = referer)
+                val response = fetchHtml(embedUrl, referer = referer)
                 val doc = response.document
                 doc.select(".embed .servers .content li[data-url]")
                     .mapNotNull { element ->
@@ -1352,7 +1387,7 @@ class ConfigDrivenProvider : MainAPI() {
     ): List<SearchResponse> {
         return runCatching {
             val url = "${apiBase.trimEnd('/')}/wp-json/wp/v2/$type?per_page=$perPage&_embed=1"
-            val response = app.get(url, referer = apiBase)
+            val response = fetchJson(url, referer = apiBase)
             val array = JSONArray(response.text)
             val seen = hashSetOf<String>()
             val results = mutableListOf<SearchResponse>()

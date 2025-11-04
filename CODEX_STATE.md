@@ -1,9 +1,10 @@
 # Codex Session State
 
 ## Modifications recentes
+- Entetes navigateur (User-Agent, Accept, Accept-Language) forces sur les appels WordPress/AJAX pour reafficher l'accueil 1J1F dans Cloudstream.
+- Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.8 (plugin version 13, 66145 octets).
 - Typage dynamique des listes (WordPress + fallback) pour distinguer films, series et anime dans Cloudstream.
 - Sections d'accueil 1J1F alimentees directement via l'API WordPress (populaires, derniers films/series/saisons/episodes) avec titres ASCII.
-- Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.7 (plugin version 12, 65305 octets).
 - Release GitHub GramFlix v1.4.7 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 12).
 - Synopses 1JOUR1FILM ajoutes (scraping + fallback WordPress) pour alimenter les fiches Cloudstream.
 - Deplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, ...) directement dans Cloudstream.
@@ -14,7 +15,7 @@
 
 ## Tests / verifications
 - OK `./gradlew.bat :app:compileDebugKotlin`
-- OK `./gradlew.bat :app:make` (artefacts 65305 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
+- OK `./gradlew.bat :app:make` (artefacts 66145 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi
