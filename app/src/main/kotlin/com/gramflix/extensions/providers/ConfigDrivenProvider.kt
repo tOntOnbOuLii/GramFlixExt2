@@ -66,6 +66,19 @@ class ConfigDrivenProvider : MainAPI() {
         val referer: String
     )
 
+    private data class AjaxConfig(
+        val url: String,
+        val playMethod: String?,
+        val playerApi: String?,
+        val classItem: Int?
+    )
+
+    private data class PlayerOption(
+        val nume: String,
+        val type: String?,
+        val label: String?
+    )
+
     private data class ImdbItem(
         val imdbId: String,
         val title: String,
@@ -592,6 +605,145 @@ class ConfigDrivenProvider : MainAPI() {
         return results.toList()
     }
 
+    private fun parseAjaxConfig(doc: Document, pageUrl: String): AjaxConfig? {
+        val html = doc.outerHtml()
+        val regex = Regex("""var\s+dtAjax\s*=\s*(\{.*?\});""", RegexOption.DOT_MATCHES_ALL)
+        val match = regex.find(html) ?: return null
+        return runCatching {
+            val json = JSONObject(match.groupValues[1])
+            val rawUrl = json.optString("url").takeIf { it.isNotBlank() }
+            val resolvedUrl = rawUrl?.let { resolveAgainst(pageUrl, it) ?: it } ?: return null
+            val playerApi = json.optString("player_api").takeIf { it.isNotBlank() }
+                ?.let { resolveAgainst(pageUrl, it) ?: it }
+            val playMethod = json.optString("play_method").takeIf { it.isNotBlank() }
+            val classItem = when {
+                json.has("classitem") -> {
+                    json.optInt("classitem").takeIf { it > 0 } ?: json.optString("classitem").toIntOrNull()
+                }
+                else -> null
+            }
+            AjaxConfig(resolvedUrl, playMethod, playerApi, classItem)
+        }.getOrNull()
+    }
+
+    private fun extractPostId(doc: Document): String? {
+        val body = doc.selectFirst("body") ?: return null
+        val classes = body.classNames()
+        return classes.firstOrNull { it.startsWith("postid-", ignoreCase = true) }
+            ?.removePrefix("postid-")
+            ?.takeIf { it.all { ch -> ch.isDigit() } }
+    }
+
+    private fun inferPlayerType(doc: Document, pageUrl: String): String {
+        val body = doc.selectFirst("body")
+        val classes = body?.classNames()?.map { it.lowercase(Locale.ROOT) } ?: emptyList()
+        return when {
+            classes.any { it.contains("episode") } || pageUrl.contains("/episode", ignoreCase = true) -> "episode"
+            classes.any { it.contains("season") } || pageUrl.contains("/season", ignoreCase = true) -> "season"
+            classes.any { it.contains("tvshow") || it.contains("tvshows") || it.contains("type-tv") } ||
+                pageUrl.contains("/tvshows", ignoreCase = true) -> "tv"
+            else -> "movie"
+        }
+    }
+
+    private fun parsePlayerOptions(doc: Document): List<PlayerOption> {
+        val options = mutableListOf<PlayerOption>()
+        doc.select("li.dooplay_player_option").forEach { element ->
+            val rawNume = element.attr("data-nume")
+                .ifBlank { element.attr("data-player") }
+                .ifBlank { element.attr("data-id") }
+            val nume = rawNume.trim().takeIf { it.isNotBlank() } ?: return@forEach
+            val type = element.attr("data-type").takeIf { it.isNotBlank() }
+            val label = element.attr("data-title").takeIf { it.isNotBlank() }
+                ?: element.attr("data-name").takeIf { it.isNotBlank() }
+                ?: element.selectFirst(".title")?.text()?.takeIf { it.isNotBlank() }
+                ?: element.text().takeIf { it.isNotBlank() }
+            options += PlayerOption(nume, type, label)
+        }
+        return options
+    }
+
+    private suspend fun fetchAjaxEmbeds(
+        doc: Document,
+        pageUrl: String,
+        ajaxConfig: AjaxConfig?
+    ): List<String> {
+        val config = ajaxConfig ?: return emptyList()
+        val postId = extractPostId(doc) ?: return emptyList()
+        val defaultType = inferPlayerType(doc, pageUrl)
+        val declaredOptions = parsePlayerOptions(doc)
+        val options = if (declaredOptions.isNotEmpty()) {
+            declaredOptions
+        } else {
+            val fallbackCount = config.classItem?.takeIf { it > 0 } ?: 6
+            (1..fallbackCount).map { index ->
+                PlayerOption(index.toString(), defaultType, "Source $index")
+            }
+        }
+        if (options.isEmpty()) return emptyList()
+        val embeds = mutableListOf<String>()
+        val seen = hashSetOf<String>()
+        for (option in options) {
+            val nume = option.nume
+            val type = option.type?.takeIf { it.isNotBlank() } ?: defaultType
+            val embed = fetchAjaxEmbed(config, pageUrl, postId, type, nume) ?: continue
+            val normalized = normalizeEmbedUrl(pageUrl, embed)
+            if (seen.add(normalized)) {
+                embeds += normalized
+            }
+        }
+        return embeds
+    }
+
+    private suspend fun fetchAjaxEmbed(
+        config: AjaxConfig,
+        pageUrl: String,
+        postId: String,
+        type: String,
+        nume: String
+    ): String? {
+        return try {
+            val method = config.playMethod?.lowercase(Locale.ROOT)
+            val payload = when (method) {
+                "wp_json" -> {
+                    val api = config.playerApi ?: return null
+                    val normalizedApi = if (api.endsWith("/")) api.dropLast(1) else api
+                    val target = "$normalizedApi/$postId/$type/$nume"
+                    app.get(target, referer = pageUrl).text
+                }
+                else -> {
+                    val ajaxUrl = config.url
+                    app.post(
+                        ajaxUrl,
+                        referer = pageUrl,
+                        data = mapOf(
+                            "action" to "doo_player_ajax",
+                            "post" to postId,
+                            "nume" to nume,
+                            "type" to type
+                        ),
+                        headers = mapOf(
+                            "X-Requested-With" to "XMLHttpRequest"
+                        )
+                    ).text
+                }
+            }
+            val json = JSONObject(payload)
+            json.optString("embed_url").takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun normalizeEmbedUrl(pageUrl: String, url: String): String {
+        val trimmed = url.trim()
+        return when {
+            trimmed.startsWith("//") -> "https:$trimmed"
+            trimmed.startsWith("/") -> resolveAgainst(pageUrl, trimmed) ?: trimmed
+            else -> trimmed
+        }
+    }
+
     private fun extractYearFrom(title: String): Int? {
         val match = yearRegex.find(title) ?: return null
         return match.value.toIntOrNull()
@@ -683,6 +835,69 @@ class ConfigDrivenProvider : MainAPI() {
             if (responses.size >= limit) break
         }
         return responses
+    }
+
+    private fun extractOneJourHome(
+        meta: ProviderMeta,
+        doc: Document,
+        dedupe: MutableSet<String>
+    ): List<HomePageList> {
+        val pageBase = doc.location().ifBlank { meta.baseUrl }
+        val sections = mutableListOf<HomePageList>()
+        for (container in doc.select("div.items")) {
+            val articles = container.select("article")
+            if (articles.isEmpty()) continue
+            val sectionTitle = container.previousElementSibling()
+                ?.selectFirst("h2, h3, h1")
+                ?.text()
+                ?.trim()
+                ?.takeUnless { it.isBlank() }
+                ?: container.parent()?.selectFirst("h2, h3, h1")
+                    ?.text()
+                    ?.trim()
+                    ?.takeUnless { it.isBlank() }
+                ?: meta.displayName
+            val responses = mutableListOf<SearchResponse>()
+            for (article in articles) {
+                val anchor = article.selectFirst("a[href]") ?: continue
+                var href = anchor.absUrl("href")
+                if (href.isBlank()) {
+                    val rawHref = anchor.attr("href")
+                    if (rawHref.isBlank()) continue
+                    href = resolveAgainst(pageBase, rawHref) ?: continue
+                }
+                val normalizedHref = canonicalizeUrl(href)
+                val dedupeKey = "${meta.slug}::$normalizedHref"
+                if (!dedupe.add(dedupeKey)) continue
+                val titleText = article.selectFirst("h3 a")?.text()?.trim()?.takeUnless { it.isBlank() }
+                    ?: anchor.attr("title").takeIf { it.isNotBlank() }
+                    ?: anchor.text().takeIf { it.isNotBlank() }
+                    ?: meta.displayName
+                val posterElement = article.selectFirst("img")
+                val poster = posterElement?.let { img ->
+                    sequenceOf("data-src", "data-lazy-src", "data-original", "data-orig-file", "src")
+                        .mapNotNull { attr -> img.attr(attr).takeIf { it.isNotBlank() } }
+                        .map { resolveAgainst(pageBase, it) ?: it }
+                        .firstOrNull()
+                }
+                val item = createSearchItem(
+                    meta = meta,
+                    title = titleText,
+                    url = href,
+                    poster = poster,
+                    includeProvider = false,
+                    query = null
+                )
+                if (item != null) {
+                    responses += item.response
+                }
+                if (responses.size >= 20) break
+            }
+            if (responses.isNotEmpty()) {
+                sections += HomePageList(sectionTitle, responses)
+            }
+        }
+        return sections
     }
 
     private fun fallbackExtraction(
@@ -783,6 +998,11 @@ class ConfigDrivenProvider : MainAPI() {
                 val responses = items.map { it.response }
                 if (responses.isNotEmpty()) {
                     lists += HomePageList(meta.displayName, responses)
+                } else if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                    val fallbackSections = extractOneJourHome(meta, doc, dedupe)
+                    if (fallbackSections.isNotEmpty()) {
+                        lists.addAll(fallbackSections)
+                    }
                 }
             } catch (_: Throwable) {
                 // Ignore providers that fail
@@ -910,7 +1130,10 @@ class ConfigDrivenProvider : MainAPI() {
             val referer = meta?.baseUrl ?: pageUrl
             val response = app.get(pageUrl, referer = referer)
             val doc = response.document
+            val ajaxConfig = parseAjaxConfig(doc, pageUrl)
+            val ajaxEmbeds = fetchAjaxEmbeds(doc, pageUrl, ajaxConfig)
             val candidates = linkedSetOf<String>()
+            ajaxEmbeds.forEach { candidates += it }
             candidates += gatherEmbedCandidates(doc, pageUrl, meta)
             if (candidates.isEmpty()) {
                 candidates += gatherFallbackCandidates(doc, pageUrl)
