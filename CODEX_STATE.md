@@ -1,7 +1,7 @@
 # Codex Session State
 
 ## Modifications recentes
-- Déplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, …) directement dans Cloudstream.
+- Deplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, ...) directement dans Cloudstream.
 - Fallback DooPlay : bascule automatique sur `/wp-admin/admin-ajax.php` lorsque `dtAjax` est absent (1JOUR1FILM).
 - Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regenere(s) pour GramFlix v1.4.5 (plugin version 10, 58499 octets).
 - Config dynamique limitee au provider `1JOUR1FILM` (`https://1jour1film1025b.site/`) pour la phase de tests site par site.
@@ -14,7 +14,7 @@
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi
-- Préparer la release GitHub GramFlix v1.4.5 (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 10).
+- Release GitHub GramFlix v1.4.5 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 10).
 - Mettre a jour les releases v1.4.2/v1.4.3 si toujours necessaire (remplacement artefacts uniquement).
 - Tester dans Cloudstream (vider le cache de l extension, verifier accueil, recherche et lecture multi-sources).
 - Une fois 1J1F valide, lancer la meme sequence pour `anime-sama`.
