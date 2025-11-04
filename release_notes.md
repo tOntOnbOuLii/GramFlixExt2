@@ -1,3 +1,9 @@
+GramFlix v1.4.10
+
+- Récupère la home 1J1F sans referer pour contourner les 403 Cloudflare et garantit l'ajout des sections fallback IMDB.
+- Ajout systématique des sections home.json (page 1) pour ne jamais revenir avec un accueil vide dans Cloudstream.
+- Build : :app:make (plugin version 15, artefact 67129 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 regeneres).
+
 GramFlix v1.4.9
 
 - Emule des entetes complets (Sec-Fetch, Origin, cache-control) sur les appels WordPress/Dooplay pour supprimer les retours vides sur l'accueil Cloudstream.
@@ -32,3 +38,5 @@ GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour recuperer les sources DooPlay quand `dtAjax` n'est pas expose.
 - Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
+

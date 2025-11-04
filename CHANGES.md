@@ -1,3 +1,10 @@
+GramFlix v1.4.10
+----------------
+
+- Html home 1J1F recupere sans referer pour eviter le filtrage Cloudflare et append systematiquement les sections fallback IMDB.
+- Fallback `home.json` ajoute en complement des sections 1J1F (page 1) pour ne plus obtenir d'accueil vide dans Cloudstream.
+- Rebuilt package (`:app:make`, artefact 67129 octets, plugin version 15).
+
 GramFlix v1.4.9
 ---------------
 
@@ -81,3 +88,4 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+

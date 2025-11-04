@@ -1186,7 +1186,7 @@ class ConfigDrivenProvider : MainAPI() {
                 }
                 if (handled) continue
                 val effectiveRule = rule ?: continue
-                val response = fetchHtml(meta.baseUrl, referer = meta.baseUrl)
+                val response = fetchHtml(meta.baseUrl, referer = null)
                 val doc = response.document
                 val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
                 val responses = items.map { it.response }
@@ -1200,6 +1200,13 @@ class ConfigDrivenProvider : MainAPI() {
                 }
             } catch (_: Throwable) {
                 // Ignore providers that fail
+            }
+        }
+        if (page == 1) {
+            HomeConfig.ensureLoaded()
+            val fallbackLists = loadHomeFallback()
+            if (fallbackLists.isNotEmpty()) {
+                lists.addAll(fallbackLists)
             }
         }
         if (lists.isEmpty()) {
