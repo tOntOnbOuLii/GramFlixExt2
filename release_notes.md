@@ -1,3 +1,9 @@
+GramFlix v1.4.5
+
+- Déplie les players `api.voirfilm.cam` pour récupérer automatiquement les miroirs (Uqload, Voe, Netu, Dood, etc.) côté Cloudstream.
+- Priorise les hébergeurs complets avant la bande-annonce YouTube lorsque plusieurs sources sont disponibles.
+- Build : `:app:make` (plugin version 10, artefact 58499 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour récupérer les sources DooPlay quand `dtAjax` n'est pas exposé.

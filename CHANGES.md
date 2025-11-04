@@ -1,3 +1,10 @@
+GramFlix v1.4.5
+---------------
+
+- Déplie les pages embed `api.voirfilm.cam` pour exposer directement les miroirs (Uqload, Voe, Netu, Dood, etc.) dans Cloudstream.
+- Priorise les sources réelles avant les trailers YouTube lorsque disponibles.
+- Rebuilt package (`:app:make`, artefact 58499 octets, plugin version 10).
+
 GramFlix v1.4.4
 ---------------
 
