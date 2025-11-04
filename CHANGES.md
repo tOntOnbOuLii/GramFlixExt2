@@ -1,3 +1,10 @@
+GramFlix v1.4.8
+---------------
+
+- Force des entetes navigateur (User-Agent, Accept, Accept-Language) sur les appels WordPress/AJAX pour reafficher l'accueil 1JOUR1FILM dans Cloudstream.
+- Reutilise ces entetes sur les extractions fallback afin d'eviter les blocages Cloudflare et fiabiliser les parsings.
+- Rebuilt package (`:app:make`, artefact 66145 octets, plugin version 13).
+
 GramFlix v1.4.7
 ---------------
 

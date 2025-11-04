@@ -1,3 +1,9 @@
+GramFlix v1.4.8
+
+- Force des entetes navigateur (User-Agent, Accept, Accept-Language) sur les appels WordPress et AJAX pour debloquer l'accueil Cloudstream 1JOUR1FILM.
+- Applique les memes entetes aux parsings fallback pour contourner les protections Cloudflare.
+- Build : `:app:make` (plugin version 13, artefact 66145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.7
 
 - Accueil Cloudstream alimente directement via l'API WordPress (populaires, derniers films/series/saisons/episodes).
