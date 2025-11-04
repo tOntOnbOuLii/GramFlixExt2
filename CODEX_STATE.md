@@ -13,7 +13,7 @@
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi
-- Publier la release GitHub GramFlix v1.4.4 (remplacer `gramflix-all.cs3`, ajouter `gramflix-1jour1film.cs3` si souhaite).
+- Release GitHub GramFlix v1.4.4 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 9).
 - Mettre a jour les releases v1.4.2/v1.4.3 si toujours necessaire (remplacement artefacts uniquement).
 - Tester dans Cloudstream (vider le cache de l extension, verifier accueil, recherche et lecture multi-sources).
 - Une fois 1J1F valide, lancer la meme sequence pour `anime-sama`.
