@@ -608,22 +608,39 @@ class ConfigDrivenProvider : MainAPI() {
     private fun parseAjaxConfig(doc: Document, pageUrl: String): AjaxConfig? {
         val html = doc.outerHtml()
         val regex = Regex("""var\s+dtAjax\s*=\s*(\{.*?\});""", RegexOption.DOT_MATCHES_ALL)
-        val match = regex.find(html) ?: return null
-        return runCatching {
-            val json = JSONObject(match.groupValues[1])
-            val rawUrl = json.optString("url").takeIf { it.isNotBlank() }
-            val resolvedUrl = rawUrl?.let { resolveAgainst(pageUrl, it) ?: it } ?: return null
-            val playerApi = json.optString("player_api").takeIf { it.isNotBlank() }
-                ?.let { resolveAgainst(pageUrl, it) ?: it }
-            val playMethod = json.optString("play_method").takeIf { it.isNotBlank() }
-            val classItem = when {
-                json.has("classitem") -> {
-                    json.optInt("classitem").takeIf { it > 0 } ?: json.optString("classitem").toIntOrNull()
+        val match = regex.find(html)
+        if (match != null) {
+            val parsed = runCatching {
+                val json = JSONObject(match.groupValues[1])
+                val rawUrl = json.optString("url").takeIf { it.isNotBlank() }
+                val resolvedUrl = rawUrl?.let { resolveAgainst(pageUrl, it) ?: it } ?: return@runCatching null
+                val playerApi = json.optString("player_api").takeIf { it.isNotBlank() }
+                    ?.let { resolveAgainst(pageUrl, it) ?: it }
+                val playMethod = json.optString("play_method").takeIf { it.isNotBlank() }
+                val classItem = when {
+                    json.has("classitem") -> {
+                        json.optInt("classitem").takeIf { it > 0 } ?: json.optString("classitem").toIntOrNull()
+                    }
+                    else -> null
                 }
-                else -> null
+                AjaxConfig(resolvedUrl, playMethod, playerApi, classItem)
+            }.getOrNull()
+            if (parsed != null) {
+                return parsed
             }
-            AjaxConfig(resolvedUrl, playMethod, playerApi, classItem)
-        }.getOrNull()
+        }
+
+        val dooPlayOptions = doc.select("li.dooplay_player_option")
+        if (dooPlayOptions.isNotEmpty()) {
+            val fallbackUrl = resolveAgainst(pageUrl, "/wp-admin/admin-ajax.php")
+                ?.takeIf { it.isNotBlank() }
+            if (fallbackUrl != null) {
+                val classItem = dooPlayOptions.size.takeIf { it > 0 }
+                return AjaxConfig(fallbackUrl, playMethod = null, playerApi = null, classItem = classItem)
+            }
+        }
+
+        return null
     }
 
     private fun extractPostId(doc: Document): String? {

@@ -1,3 +1,9 @@
+GramFlix v1.4.4
+---------------
+
+- Fallback `admin-ajax.php` pour récupérer les sources DooPlay lorsque `dtAjax` est absent (1JOUR1FILM et sites DooPlay similaires).
+- Rebuilt package (`:app:make`, artefact 56947 octets, plugin version 9).
+
 GramFlix v1.4.3
 ---------------
 

@@ -1,3 +1,8 @@
+GramFlix v1.4.4
+
+- Fallback automatique vers `/wp-admin/admin-ajax.php` pour récupérer les sources DooPlay quand `dtAjax` n'est pas exposé.
+- Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.3
 
 - Ajoute la recuperation AJAX des players `doo_player_ajax` pour 1JOUR1FILM afin de proposer toutes les sources.
