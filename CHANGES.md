@@ -1,3 +1,10 @@
+GramFlix v1.4.9
+---------------
+
+- Emule un navigateur complet (Sec-Fetch, Origin, cache-control, keep-alive) sur les requetes WordPress/Dooplay pour contourner les reponses 403/None sur l'accueil.
+- Force le fallback `home.json` lorsque la configuration distante est indisponible afin d'eviter les listes vides dans Cloudstream.
+- Rebuilt package (`:app:make`, artefact 67136 octets, plugin version 14).
+
 GramFlix v1.4.8
 ---------------
 
