@@ -1,12 +1,12 @@
 # Codex Session State
 
 ## Modifications recentes
-- Entetes navigateur completes (User-Agent, Accept, Accept-Language, Sec-Fetch, Origin, cache-control) appliquees sur les appels WordPress/Dooplay pour debloquer l'accueil 1J1F et contourner les 403.
-- Fallback `home.json` force lorsque la configuration distante est indisponible afin d'eviter les listes vides dans Cloudstream.
-- Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.10 (plugin version 15, 67129 octets).
+- Menu de selection d'accueil (MainPageData) expose 1JOUR1FILM (et futurs sites) dans Cloudstream.
+- Home fallback IMDB dedie lorsqu'un provider retourne une page vide, pour eviter les listes "None".
+- Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.11 (plugin version 16, 68071 octets).
 - Typage dynamique des listes (WordPress + fallback) pour distinguer films, series et anime dans Cloudstream.
 - Sections d'accueil 1J1F alimentees directement via l'API WordPress (populaires, derniers films/series/saisons/episodes) avec titres ASCII.
-- Release GitHub GramFlix v1.4.10 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 15).
+- Release GitHub GramFlix v1.4.11 publiee (artefacts `gramflix-all.cs3` / `gramflix-1jour1film.cs3`, plugin 16).
 - Synopses 1JOUR1FILM ajoutes (scraping + fallback WordPress) pour alimenter les fiches Cloudstream.
 - Deplie les embeds `api.voirfilm.cam` pour exposer les miroirs (Uqload, Voe, Netu, Dood, ...) directement dans Cloudstream.
 - Fallback DooPlay : bascule automatique sur `/wp-admin/admin-ajax.php` lorsque `dtAjax` est absent (1JOUR1FILM).
@@ -16,7 +16,7 @@
 
 ## Tests / verifications
 - OK `./gradlew.bat :app:compileDebugKotlin`
-- OK `./gradlew.bat :app:make` (artefacts 67129 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
+- OK `./gradlew.bat :app:make` (artefacts 68071 octets, copies `gramflix-all.cs3` / `gramflix-1jour1film.cs3` mises a jour).
 - Verification manuelle : accueil `https://1jour1film1025b.site/` et recherche `?s=avatar` exploitables (`.item` + `.poster`).
 
 ## A faire / suivi

@@ -1,18 +1,24 @@
+GramFlix v1.4.11
+
+- Ajoute la selection de provider sur la page d'accueil (MainPageData) pour choisir 1JOUR1FILM et les futurs sites.
+- Retourne uniquement les sections du provider demande et expose une entree fallback IMDB lorsque la home distante est vide.
+- Build : `:app:make` (plugin version 16, artefact 68071 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.10
 
-- Récupère la home 1J1F sans referer pour contourner les 403 Cloudflare et garantit l'ajout des sections fallback IMDB.
-- Ajout systématique des sections home.json (page 1) pour ne jamais revenir avec un accueil vide dans Cloudstream.
-- Build : :app:make (plugin version 15, artefact 67129 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 regeneres).
+- Html home 1J1F recupere sans referer pour contourner les 403 Cloudflare et ajouter les sections fallback IMDB.
+- Fallback `home.json` ajoute en complement des sections 1J1F (page 1) pour ne plus obtenir d'accueil vide dans Cloudstream.
+- Build : `:app:make` (plugin version 15, artefact 67129 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
 
 GramFlix v1.4.9
 
-- Emule des entetes complets (Sec-Fetch, Origin, cache-control) sur les appels WordPress/Dooplay pour supprimer les retours vides sur l'accueil Cloudstream.
+- Emule des entetes complets (Sec-Fetch, Origin, cache-control) sur les appels WordPress/Dooplay pour supprimer les retours vides.
 - Bascule automatiquement sur le fallback `home.json` lorsque la configuration distante est manquante, garantissant au moins des sections IMDB.
 - Build : `:app:make` (plugin version 14, artefact 67136 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
 
 GramFlix v1.4.8
 
-- Force des entetes navigateur (User-Agent, Accept, Accept-Language) sur les appels WordPress et AJAX pour debloquer l'accueil Cloudstream 1JOUR1FILM.
+- Force des entetes navigateur (User-Agent, Accept, Accept-Language) sur les appels WordPress et AJAX pour debloquer l'accueil 1JOUR1FILM.
 - Applique les memes entetes aux parsings fallback pour contourner les protections Cloudflare.
 - Build : `:app:make` (plugin version 13, artefact 66145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
 
@@ -38,5 +44,3 @@ GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour recuperer les sources DooPlay quand `dtAjax` n'est pas expose.
 - Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
-
-

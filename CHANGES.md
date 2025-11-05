@@ -1,5 +1,12 @@
-GramFlix v1.4.10
+GramFlix v1.4.11
 ----------------
+
+- Ajoute la selection de provider sur l'accueil Cloudstream (MainPageData) pour choisir 1JOUR1FILM (et futurs sites) depuis le menu.
+- Adapte les sections retournees pour n'afficher que le provider cible et expose une entree fallback IMDB lorsqu'aucune home distante n'est disponible.
+- Rebuilt package (`:app:make`, artefact 68071 octets, plugin version 16).
+
+GramFlix v1.4.10
+---------------
 
 - Html home 1J1F recupere sans referer pour eviter le filtrage Cloudflare et append systematiquement les sections fallback IMDB.
 - Fallback `home.json` ajoute en complement des sections 1J1F (page 1) pour ne plus obtenir d'accueil vide dans Cloudstream.
@@ -88,4 +95,3 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
-

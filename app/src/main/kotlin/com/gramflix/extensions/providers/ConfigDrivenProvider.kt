@@ -4,6 +4,7 @@ import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
@@ -39,6 +40,21 @@ class ConfigDrivenProvider : MainAPI() {
     override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
+
+    override val mainPage: List<MainPageData>
+        get() {
+            ensureRemoteConfigs()
+            val metas = gatherProviders()
+            val entries = metas.map { meta ->
+                MainPageData(meta.displayName, meta.slug, horizontalImages = false)
+            }
+            val fallbackAvailable = (HomeConfig.sectionsArray()?.length() ?: 0) > 0
+            return when {
+                entries.isEmpty() && fallbackAvailable -> listOf(MainPageData("Fallback IMDB", FALLBACK_HOME_KEY, false))
+                fallbackAvailable -> entries + MainPageData("Fallback IMDB", FALLBACK_HOME_KEY, false)
+                else -> entries
+            }
+        }
 
     init {
         sequentialMainPage = true
@@ -98,6 +114,7 @@ class ConfigDrivenProvider : MainAPI() {
         private const val ACCEPT_JSON = "application/json, text/plain, */*"
         private const val ACCEPT_AJAX = "application/json, text/javascript, */*;q=0.01"
         private const val ACCEPT_LANGUAGE = "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+        private const val FALLBACK_HOME_KEY = "__fallback__"
     }
 
     private fun originFrom(url: String?): String? {
@@ -1160,63 +1177,87 @@ class ConfigDrivenProvider : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         ensureRemoteConfigs()
         val metas = gatherProviders()
-        if (metas.isEmpty()) {
-            val fallbackLists = loadHomeFallback()
+        val requestedSlug = request.data?.takeIf { it.isNotBlank() }
+        val filteredMetas = when {
+            requestedSlug == null -> metas
+            requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true) -> emptyList()
+            else -> metas.filter { it.slug.equals(requestedSlug, ignoreCase = true) }
+        }.ifEmpty {
+            if (requestedSlug == null || requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true)) emptyList() else metas
+        }
+
+        val pageSize = 5
+        val lists = mutableListOf<HomePageList>()
+        if (filteredMetas.isNotEmpty()) {
+            val startIndex = max(0, (page - 1) * pageSize)
+            val slice = if (requestedSlug == null) {
+                if (startIndex >= filteredMetas.size) return newHomePageResponse(emptyList(), hasNext = false)
+                filteredMetas.drop(startIndex).take(pageSize)
+            } else {
+                filteredMetas
+            }
+            for (meta in slice) {
+                val rule = meta.rule
+                try {
+                    val dedupe = hashSetOf<String>()
+                    var handled = false
+                    if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                        val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
+                        if (apiSections.isNotEmpty()) {
+                            lists.addAll(apiSections)
+                            handled = true
+                        }
+                    }
+                    if (handled) continue
+                    val effectiveRule = rule ?: continue
+                    val response = fetchHtml(meta.baseUrl, referer = null)
+                    val doc = response.document
+                    val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
+                    val responses = items.map { it.response }
+                    if (responses.isNotEmpty()) {
+                        lists += HomePageList(meta.displayName, responses)
+                    } else if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                        val fallbackSections = extractOneJourHome(meta, doc, dedupe)
+                        if (fallbackSections.isNotEmpty()) {
+                            lists.addAll(fallbackSections)
+                        }
+                    }
+                } catch (_: Throwable) {
+                    // Ignore providers that fail
+                }
+            }
+        }
+
+        val fallbackLists = if (page == 1) {
+            HomeConfig.ensureLoaded()
+            loadHomeFallback()
+        } else emptyList()
+
+        if (requestedSlug?.equals(FALLBACK_HOME_KEY, ignoreCase = true) == true) {
             if (fallbackLists.isNotEmpty()) {
                 return newHomePageResponse(fallbackLists, hasNext = false)
             }
             return newHomePageResponse(emptyList(), hasNext = false)
         }
-        val pageSize = 5
-        val startIndex = max(0, (page - 1) * pageSize)
-        if (startIndex >= metas.size) return newHomePageResponse(emptyList(), hasNext = false)
-        val slice = metas.drop(startIndex).take(pageSize)
-        val lists = mutableListOf<HomePageList>()
-        for (meta in slice) {
-            val rule = meta.rule
-            try {
-                val dedupe = hashSetOf<String>()
-                var handled = false
-                if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
-                    val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
-                    if (apiSections.isNotEmpty()) {
-                        lists.addAll(apiSections)
-                        handled = true
-                    }
-                }
-                if (handled) continue
-                val effectiveRule = rule ?: continue
-                val response = fetchHtml(meta.baseUrl, referer = null)
-                val doc = response.document
-                val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
-                val responses = items.map { it.response }
-                if (responses.isNotEmpty()) {
-                    lists += HomePageList(meta.displayName, responses)
-                } else if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
-                    val fallbackSections = extractOneJourHome(meta, doc, dedupe)
-                    if (fallbackSections.isNotEmpty()) {
-                        lists.addAll(fallbackSections)
-                    }
-                }
-            } catch (_: Throwable) {
-                // Ignore providers that fail
-            }
-        }
-        if (page == 1) {
-            HomeConfig.ensureLoaded()
-            val fallbackLists = loadHomeFallback()
-            if (fallbackLists.isNotEmpty()) {
-                lists.addAll(fallbackLists)
-            }
-        }
+
         if (lists.isEmpty()) {
-            HomeConfig.ensureLoaded()
-            val fallbackLists = loadHomeFallback()
             if (fallbackLists.isNotEmpty()) {
                 return newHomePageResponse(fallbackLists, hasNext = false)
             }
+            return newHomePageResponse(emptyList(), hasNext = false)
         }
-        val hasNext = startIndex + pageSize < metas.size
+
+        if (fallbackLists.isNotEmpty() && requestedSlug == null) {
+            lists.addAll(fallbackLists)
+        }
+
+        val hasNext = if (requestedSlug == null) {
+            val total = filteredMetas.size
+            val startIndex = max(0, (page - 1) * pageSize)
+            val nextIndex = startIndex + pageSize
+            nextIndex < total
+        } else false
+
         return newHomePageResponse(lists, hasNext)
     }
 
