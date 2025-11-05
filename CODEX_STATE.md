@@ -2,7 +2,8 @@
 
 ## Modifications recentes
 - Menu de selection d'accueil (MainPageData) expose 1JOUR1FILM (et futurs sites) dans Cloudstream.
-- Home fallback IMDB dedie lorsqu'un provider retourne une page vide, pour eviter les listes "None".
+- Fallback IMDB toujours disponible meme lorsque WordPress renvoie vide (`HomeConfig.ensureLoaded` + entree dediee).
+- Note debug sources : `doo_player_ajax` renvoie Supervideo + uns.bio ; les autres miroirs (vidsrcme, savefiles...) sont injectes via l'iframe `dismoiceline.uns.bio` (player Vidstack) et necessitent un extracteur dedie.
 - Paquet(s) `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres pour GramFlix v1.4.12 (plugin version 17, 68128 octets).
 - Typage dynamique des listes (WordPress + fallback) pour distinguer films, series et anime dans Cloudstream.
 - Sections d'accueil 1J1F alimentees directement via l'API WordPress (populaires, derniers films/series/saisons/episodes) avec titres ASCII.
@@ -13,6 +14,7 @@
 - Config dynamique limitee au provider `1JOUR1FILM` (`https://1jour1film1025b.site/`) pour la phase de tests site par site.
 - `providers.json` (racine + assets) ne contient plus que l'entree 1J1F.
 - Integration du player 1J1F : parsing `dtAjax`, appels `doo_player_ajax`, support multi-sources et fallback home dedie pour alimenter l'accueil Cloudstream.
+- [05/11/2025] Reverse engineering `dismoiceline.uns.bio` (Vidstack) : echec temporaire pour generer la cle AES (payloads `/api/v1` toujours chiffrés, impossibilite de publier un extracteur fonctionnel).
 
 ## Tests / verifications
 - OK `./gradlew.bat :app:compileDebugKotlin`
@@ -24,11 +26,7 @@
 - Tester dans Cloudstream (vider le cache de l'extension, verifier accueil, recherche et lecture multi-sources).
 - Une fois 1J1F valide, lancer la meme sequence pour `anime-sama`.
 - Prevoir un nouveau token GitHub si autre publication necessaire (fichier local supprime).
+- TODO : finaliser l'extracteur `dismoiceline/uns.bio` (Vidstack) : la tentative du 05/11/2025 a echoue faute de cle AES 16 octets (payloads `/api/v1` encore chiffrés). Identifier la cle, decrypter les miroirs (vidsrcme, savefiles, ...), puis auditer les autres players React.
 
 ## Notes heritage
 - Releases precedentes (v1.4.1 et anterieures) deja alignees sur plugin version 6.
-
-
-
-
-
