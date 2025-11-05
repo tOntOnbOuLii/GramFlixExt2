@@ -1,8 +1,14 @@
+GramFlix v1.4.12
+
+- Active explicitement l'accueil Cloudstream (`hasMainPage=true`) et expose 1JOUR1FILM / fallback IMDB dans le menu d'accueil.
+- Force le chargement du fallback `home.json` (HomeConfig.ensureLoaded) pour afficher des sections meme lorsque la home distante renvoie vide.
+- Build : `:app:make` (plugin version 17, artefact 68128 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.11
 
 - Ajoute la selection de provider sur la page d'accueil (MainPageData) pour choisir 1JOUR1FILM et les futurs sites.
 - Retourne uniquement les sections du provider demande et expose une entree fallback IMDB lorsque la home distante est vide.
-- Build : `:app:make` (plugin version 16, artefact 68071 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+- Build : `:app:make` (plugin version 16, artefact 68128 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
 
 GramFlix v1.4.10
 
@@ -44,3 +50,5 @@ GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour recuperer les sources DooPlay quand `dtAjax` n'est pas expose.
 - Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
+

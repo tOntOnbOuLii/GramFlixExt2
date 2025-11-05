@@ -40,10 +40,12 @@ class ConfigDrivenProvider : MainAPI() {
     override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
+    override val hasMainPage = true
 
     override val mainPage: List<MainPageData>
         get() {
             ensureRemoteConfigs()
+            HomeConfig.ensureLoaded()
             val metas = gatherProviders()
             val entries = metas.map { meta ->
                 MainPageData(meta.displayName, meta.slug, horizontalImages = false)
