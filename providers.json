@@ -3,7 +3,7 @@
     "providers": {
         "1jour1film": {
             "name": "1JOUR1FILM",
-            "baseUrl": "https://1jour1film1125.sites"
+            "baseUrl": "https://1jour1film1125.site"
         },
         "animesama": {
             "name": "Anime-Sama",
