@@ -1,3 +1,10 @@
+GramFlix v1.4.14
+----------------
+
+- Decode les scripts `dt_main_ajax` embarques en data:URI base64 pour extraire `dtAjax` meme lorsque WordPress les masque.
+- Etend la lecture de `dtAjax` (play_ajaxmd/class_item) afin de conserver la liste des sources 1J1F.
+- Rebuilt package (`:app:make`, artefact 75524 octets, plugin version 19).
+
 GramFlix v1.4.13
 ----------------
 
