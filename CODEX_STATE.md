@@ -3,7 +3,7 @@
 ## Modifications recentes
 - Decode les scripts `dt_main_ajax` embarques en data:URI base64 pour retrouver `dtAjax` lors du parsing WordPress.
 - Etend la detection `dtAjax` (play_ajaxmd/class_item) afin de maintenir les sources 1J1F dans Cloudstream.
-- Regeneration des paquets GramFlix v1.4.14 (plugin version 19) en preparation de la release GitHub.
+- Paquet(s) GramFlix v1.4.14 (plugin version 19, 75524 octets) regeneres et attaches a la release GitHub.
 - Menu de selection d'accueil (MainPageData) expose 1JOUR1FILM (et futurs sites) dans Cloudstream.
 - Fallback IMDB toujours disponible meme lorsque WordPress renvoie vide (HomeConfig.ensureLoaded + entree dediee).
 - Note debug sources : doo_player_ajax renvoie Supervideo + uns.bio ; les autres miroirs (vidsrcme, savefiles...) sont injectes via l'iframe dismoiceline.uns.bio (player Vidstack).
@@ -22,11 +22,11 @@
 - OK ./gradlew.bat :app:make (artefact 75524 octets, copies gramflix-all.cs3 / gramflix-1jour1film.cs3 maj, plugin 19).
 - Verification manuelle : accueil https://1jour1film1025b.site/ et recherche ?s=avatar exploitables (.item + .poster).
 - A realiser : lecture Cloudstream via source UnsBio (HLS + sous-titres) apres publication v1.4.14.
-- Release a publier : https://github.com/tOntOnbOuLii/GramFlixExt2/releases/tag/v1.4.14 (artefacts gramflix-all.cs3 / gramflix-1jour1film.cs3).
+- Release Publiee : https://github.com/tOntOnbOuLii/GramFlixExt2/releases/tag/v1.4.14 (artefacts gramflix-all.cs3 / gramflix-1jour1film.cs3).
 
 ## A faire / suivi
 - Mettre a jour les releases v1.4.2/v1.4.3 si toujours necessaire (remplacement artefacts uniquement).
-- Publier la release GitHub v1.4.14 (artefacts plugin 19) et organiser les tests utilisateurs.
+- Diffuser la release GitHub v1.4.14 (artefacts plugin 19) et organiser les tests utilisateurs.
 - Tester dans Cloudstream (vider le cache, verifier accueil, recherche et lecture UnsBio + autres sources).
 - Une fois 1J1F valide, lancer la meme sequence pour nime-sama.
 - Prevoir un nouveau token GitHub si autre publication necessaire (fichier local supprime).
