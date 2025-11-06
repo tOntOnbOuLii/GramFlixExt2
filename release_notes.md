@@ -1,3 +1,9 @@
+GramFlix v1.4.13
+
+- Déchiffre les payloads `dismoiceline.uns.bio` (AES/CBC) afin d'exposer les flux HLS/MP4 et sous-titres directement dans Cloudstream.
+- Ajoute la détection automatique des iframes UnsBio lors du chargement des liens.
+- Build : `:app:make` (plugin version 18, artefact 68128 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.12
 
 - Active explicitement l'accueil Cloudstream (`hasMainPage=true`) et expose 1JOUR1FILM / fallback IMDB dans le menu d'accueil.
