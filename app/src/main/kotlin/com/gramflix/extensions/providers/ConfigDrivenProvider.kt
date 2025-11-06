@@ -33,6 +33,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.text.Normalizer
 import java.util.ArrayList
+import java.util.Base64
 import java.util.LinkedHashMap
 import java.util.Locale
 import kotlin.math.abs
@@ -773,25 +774,22 @@ class ConfigDrivenProvider : MainAPI() {
     private fun parseAjaxConfig(doc: Document, pageUrl: String): AjaxConfig? {
         val html = doc.outerHtml()
         val regex = Regex("""var\s+dtAjax\s*=\s*(\{.*?\});""", RegexOption.DOT_MATCHES_ALL)
-        val match = regex.find(html)
-        if (match != null) {
-            val parsed = runCatching {
-                val json = JSONObject(match.groupValues[1])
-                val rawUrl = json.optString("url").takeIf { it.isNotBlank() }
-                val resolvedUrl = rawUrl?.let { resolveAgainst(pageUrl, it) ?: it } ?: return@runCatching null
-                val playerApi = json.optString("player_api").takeIf { it.isNotBlank() }
-                    ?.let { resolveAgainst(pageUrl, it) ?: it }
-                val playMethod = json.optString("play_method").takeIf { it.isNotBlank() }
-                val classItem = when {
-                    json.has("classitem") -> {
-                        json.optInt("classitem").takeIf { it > 0 } ?: json.optString("classitem").toIntOrNull()
-                    }
-                    else -> null
-                }
-                AjaxConfig(resolvedUrl, playMethod, playerApi, classItem)
-            }.getOrNull()
-            if (parsed != null) {
-                return parsed
+
+        fun parseCandidate(candidate: String): AjaxConfig? {
+            val match = regex.find(candidate) ?: return null
+            return parseAjaxConfigJson(match.groupValues[1], pageUrl)
+        }
+
+        parseCandidate(html)?.let { return it }
+
+        doc.select("script").forEach { script ->
+            val decoded = decodeDataUriScript(script)
+            if (!decoded.isNullOrBlank()) {
+                parseCandidate(decoded)?.let { return it }
+            }
+            val inline = script.data()
+            if (!inline.isNullOrBlank()) {
+                parseCandidate(inline)?.let { return it }
             }
         }
 
@@ -806,6 +804,47 @@ class ConfigDrivenProvider : MainAPI() {
         }
 
         return null
+    }
+
+    private fun parseAjaxConfigJson(rawJson: String, pageUrl: String): AjaxConfig? {
+        return runCatching {
+            val json = JSONObject(rawJson)
+            val rawUrl = json.optString("url").takeIf { it.isNotBlank() } ?: return@runCatching null
+            val resolvedUrl = resolveAgainst(pageUrl, rawUrl) ?: rawUrl
+            val playerApi = json.optString("player_api").takeIf { it.isNotBlank() }
+                ?.let { resolveAgainst(pageUrl, it) ?: it }
+            val playMethod = sequenceOf(
+                json.optString("play_method"),
+                json.optString("play_ajaxmd"),
+                json.optString("method")
+            ).mapNotNull { it.takeIf { value -> value.isNotBlank() } }
+                .firstOrNull()
+            val classItem = when {
+                json.has("classitem") -> {
+                    json.optInt("classitem").takeIf { it > 0 }
+                        ?: json.optString("classitem").toIntOrNull()
+                }
+                json.has("class_item") -> {
+                    json.optInt("class_item").takeIf { it > 0 }
+                        ?: json.optString("class_item").toIntOrNull()
+                }
+                else -> null
+            }
+            AjaxConfig(resolvedUrl, playMethod, playerApi, classItem)
+        }.getOrNull()
+    }
+
+    private fun decodeDataUriScript(script: Element): String? {
+        val src = script.attr("src").trim()
+        if (!src.startsWith("data:text/javascript", ignoreCase = true)) return null
+        val base64Marker = "base64,"
+        val base64Part = src.substringAfter(base64Marker, missingDelimiterValue = "").takeIf { it.isNotBlank() }
+            ?: return null
+        val sanitized = base64Part.replace(Regex("\\s"), "")
+        return runCatching {
+            val bytes = Base64.getDecoder().decode(sanitized)
+            String(bytes, Charsets.UTF_8)
+        }.getOrNull()
     }
 
     private fun extractPostId(doc: Document): String? {

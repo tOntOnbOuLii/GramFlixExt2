@@ -1,3 +1,9 @@
+GramFlix v1.4.14
+
+- Decode les scripts `dt_main_ajax` embarques en data:URI base64 pour restaurer `dtAjax` lorsque WordPress l'injecte dans un `<script src="data:">`.
+- Normalise la lecture des attributs (`play_ajaxmd`, `class_item`) pour conserver les sources 1J1F dans Cloudstream.
+- Build : `:app:make` (plugin version 19, artefact 75524 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.13
 
 - Déchiffre les payloads `dismoiceline.uns.bio` (AES/CBC) afin d'exposer les flux HLS/MP4 et sous-titres directement dans Cloudstream.
