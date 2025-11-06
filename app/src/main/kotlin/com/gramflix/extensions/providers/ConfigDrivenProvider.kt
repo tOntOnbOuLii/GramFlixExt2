@@ -16,7 +16,10 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
 import com.gramflix.extensions.config.HomeConfig
@@ -34,6 +37,9 @@ import java.util.LinkedHashMap
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class ConfigDrivenProvider : MainAPI() {
     override var name = "GramFlix Dynamic"
@@ -117,6 +123,8 @@ class ConfigDrivenProvider : MainAPI() {
         private const val ACCEPT_AJAX = "application/json, text/javascript, */*;q=0.01"
         private const val ACCEPT_LANGUAGE = "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
         private const val FALLBACK_HOME_KEY = "__fallback__"
+        private val UNS_AES_KEY = "kiemtienmua911ca".toByteArray(Charsets.UTF_8)
+        private val UNS_AES_IV = "1234567890oiuytr".toByteArray(Charsets.UTF_8)
     }
 
     private fun originFrom(url: String?): String? {
@@ -201,6 +209,34 @@ class ConfigDrivenProvider : MainAPI() {
         }
         headers.putAll(extra)
         return headers
+    }
+
+    private fun hexToBytes(input: String): ByteArray? {
+        val clean = input.trim()
+        if (clean.isEmpty() || clean.length % 2 != 0) return null
+        return runCatching {
+            val result = ByteArray(clean.length / 2)
+            var index = 0
+            while (index < clean.length) {
+                val byte = clean.substring(index, index + 2).toInt(16)
+                result[index / 2] = byte.toByte()
+                index += 2
+            }
+            result
+        }.getOrNull()
+    }
+
+    private fun decryptUnsPayload(payload: String): JSONObject? {
+        val bytes = hexToBytes(payload) ?: return null
+        return runCatching {
+            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            val key = SecretKeySpec(UNS_AES_KEY, "AES")
+            val iv = IvParameterSpec(UNS_AES_IV)
+            cipher.init(Cipher.DECRYPT_MODE, key, iv)
+            val decrypted = cipher.doFinal(bytes)
+            val text = decrypted.toString(Charsets.UTF_8)
+            JSONObject(text)
+        }.getOrNull()
     }
 
     private suspend fun fetchHtml(
@@ -895,6 +931,10 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private fun isUnsBioLink(url: String): Boolean {
+        return url.contains("uns.bio", ignoreCase = true)
+    }
+
     private fun extractYearFrom(title: String): Int? {
         val match = yearRegex.find(title) ?: return null
         return match.value.toIntOrNull()
@@ -1480,10 +1520,19 @@ class ConfigDrivenProvider : MainAPI() {
             }
             var success = false
             prioritizedCandidates.take(25).forEach { link ->
-                try {
-                    loadExtractor(link, pageUrl, subtitleCallback, callback)
-                    success = true
-                } catch (_: Throwable) {
+                if (isUnsBioLink(link)) {
+                    val handled = runCatching {
+                        handleUnsBioEmbed(link, pageUrl, subtitleCallback, callback)
+                    }.getOrDefault(false)
+                    if (handled) {
+                        success = true
+                    }
+                } else {
+                    try {
+                        loadExtractor(link, pageUrl, subtitleCallback, callback)
+                        success = true
+                    } catch (_: Throwable) {
+                    }
                 }
             }
             success
@@ -1508,6 +1557,129 @@ class ConfigDrivenProvider : MainAPI() {
             }.getOrElse { emptyList() }
         }
         return emptyList()
+    }
+
+    private suspend fun handleUnsBioEmbed(
+        embedUrl: String,
+        pageUrl: String,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val uri = runCatching { URI(embedUrl) }.getOrNull() ?: return false
+        val baseUrl = "${uri.scheme}://${uri.host}"
+        val videoId = when {
+            !uri.fragment.isNullOrBlank() -> uri.fragment
+            uri.query != null -> uri.query.split("&").mapNotNull {
+                val parts = it.split("=")
+                if (parts.size == 2 && parts[0].equals("id", ignoreCase = true)) parts[1] else null
+            }.firstOrNull()
+            else -> null
+        }?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+
+        val refererHost = runCatching { URI(pageUrl).host }.getOrNull()
+            ?.removePrefix("www.")
+            ?.takeIf { it.isNotBlank() }
+            ?: uri.host.removePrefix("www.")
+
+        val commonHeaders = LinkedHashMap<String, String>(8)
+        commonHeaders["User-Agent"] = BROWSER_USER_AGENT
+        commonHeaders["Accept"] = ACCEPT_JSON
+        commonHeaders["Accept-Language"] = ACCEPT_LANGUAGE
+        commonHeaders["Origin"] = baseUrl
+        commonHeaders["Referer"] = embedUrl
+        commonHeaders["Connection"] = "keep-alive"
+        commonHeaders["Cache-Control"] = "no-cache"
+        commonHeaders["Sec-Fetch-Mode"] = "cors"
+        commonHeaders["Sec-Fetch-Site"] = "same-origin"
+        commonHeaders["Sec-Fetch-Dest"] = "empty"
+
+        fun absolute(path: String?): String? {
+            if (path.isNullOrBlank()) return null
+            return resolveAgainst(baseUrl, path) ?: runCatching { URI(baseUrl + path).toString() }.getOrNull()
+        }
+
+        suspend fun fetchPayload(url: String): JSONObject? {
+            val response = runCatching {
+                app.get(url, referer = embedUrl, headers = commonHeaders)
+            }.getOrNull() ?: return null
+            return decryptUnsPayload(response.text)
+        }
+
+        val infoUrl = "$baseUrl/api/v1/info?id=$videoId"
+        val infoJson = fetchPayload(infoUrl)
+        val playerId = infoJson?.optString("playerId")?.takeIf { it.isNotBlank() } ?: videoId
+
+        val screenWidth = "1920"
+        val screenHeight = "1080"
+        val videoUrl = "$baseUrl/api/v1/video?id=$playerId&w=$screenWidth&h=$screenHeight&r=$refererHost"
+        val videoJson = fetchPayload(videoUrl)
+
+        val downloadUrl = "$baseUrl/api/v1/download?id=$playerId&w=$screenWidth&h=$screenHeight&r=$refererHost"
+        val downloadJson = fetchPayload(downloadUrl)
+
+        var success = false
+        val seenSubtitles = hashSetOf<String>()
+
+        fun emitSubtitles(container: JSONObject?) {
+            container ?: return
+            val iterator = container.keys()
+            while (iterator.hasNext()) {
+                val key = iterator.next()
+                val value = container.optString(key).takeIf { it.isNotBlank() } ?: continue
+                val normalized = key.lowercase(Locale.ROOT)
+                if (seenSubtitles.add(normalized)) {
+                    val finalUrl = absolute(value) ?: continue
+                    subtitleCallback(SubtitleFile(normalized, finalUrl))
+                }
+            }
+        }
+
+        emitSubtitles(videoJson?.optJSONObject("subtitle"))
+        emitSubtitles(downloadJson?.optJSONObject("subtitle"))
+
+        val hlsUrl = videoJson?.optString("source")?.takeIf { it.isNotBlank() }
+        if (hlsUrl != null) {
+            val finalHlsUrl = absolute(hlsUrl) ?: hlsUrl
+            callback(
+                newExtractorLink(
+                    source = "UnsBio",
+                    name = "UnsBio",
+                    url = finalHlsUrl,
+                    type = ExtractorLinkType.M3U8
+                ) {
+                    referer = embedUrl
+                    quality = Qualities.Unknown.value
+                    headers = mapOf(
+                        "User-Agent" to BROWSER_USER_AGENT,
+                        "Referer" to embedUrl
+                    )
+                }
+            )
+            success = true
+        }
+
+        val mp4Url = downloadJson?.optString("mp4")?.takeIf { it.isNotBlank() }
+        if (mp4Url != null) {
+            val finalMp4Url = absolute(mp4Url) ?: mp4Url
+            callback(
+                newExtractorLink(
+                    source = "UnsBio",
+                    name = "UnsBio",
+                    url = finalMp4Url,
+                    type = ExtractorLinkType.VIDEO
+                ) {
+                    referer = embedUrl
+                    quality = Qualities.Unknown.value
+                    headers = mapOf(
+                        "User-Agent" to BROWSER_USER_AGENT,
+                        "Referer" to embedUrl
+                    )
+                }
+            )
+            success = true
+        }
+
+        return success
     }
 
     private suspend fun fetchWpCollection(

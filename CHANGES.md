@@ -1,3 +1,10 @@
+GramFlix v1.4.13
+----------------
+
+- Déchiffre et exploite le player `dismoiceline.uns.bio` (Vidstack) pour récupérer les flux HLS/MP4 et les sous-titres.
+- Ajoute l’injection automatique des sous-titres UnsBio lors de la chargement des liens Cloudstream.
+- Rebuilt package (`:app:make`, artefact 68128 octets, plugin version 18).
+
 GramFlix v1.4.12
 ----------------
 
