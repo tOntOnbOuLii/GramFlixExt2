@@ -1,6 +1,133 @@
 {
-  "version": 1,
-  "providers": {
-    "1JOUR1FILM": { "name": "1JOUR1FILM", "baseUrl": "https://1jour1film1125.site/" }
-  }
+    "version": 1,
+    "providers": {
+        "1jour1film": {
+            "name": "1JOUR1FILM",
+            "baseUrl": "https://1jour1film1125.sites"
+        },
+        "animesama": {
+            "name": "Anime-Sama",
+            "baseUrl": "https://anime-sama.fr"
+        },
+        "buzzmonclick": {
+            "name": "BuzzMonclick",
+            "baseUrl": "https://buzzmonclick.io"
+        },
+        "cineplateforme": {
+            "name": "CinePlateforme",
+            "baseUrl": "https://www.cineplateforme.cc"
+        },
+        "cinepulse": {
+            "name": "Cinepulse",
+            "baseUrl": "https://cinepulse.cc"
+        },
+        "cmd-stream": {
+            "name": "CMD-Stream",
+            "baseUrl": "https://cmd-stream.xyz"
+        },
+        "coflix": {
+            "name": "CoFliX",
+            "baseUrl": "https://coflix.boo"
+        },
+        "cpasmal": {
+            "name": "CPasMal",
+            "baseUrl": "https://www.cpasmal.rip"
+        },
+        "directfr": {
+            "name": "DirectFR",
+            "baseUrl": "https://directfr.lat"
+        },
+        "fanstream": {
+            "name": "Fanstream",
+            "baseUrl": "https://fanstream.fun"
+        },
+        "filmoflix": {
+            "name": "FilmoFlix",
+            "baseUrl": "https://filmoflix.bike"
+        },
+        "flemmix": {
+            "name": "Flemmix",
+            "baseUrl": "https://flemmix.town"
+        },
+        "frembed": {
+            "name": "Frembed",
+            "baseUrl": "https://frembed.cfd"
+        },
+        "frenchstream": {
+            "name": "French stream",
+            "baseUrl": "https://fs-miroir6.lol"
+        },
+        "frenchtvlive": {
+            "name": "French TV LIVE",
+            "baseUrl": "https://fstv.lol"
+        },
+        "gogoflix": {
+            "name": "GogoFliX",
+            "baseUrl": "https://gogoflix.website"
+        },
+        "hdss": {
+            "name": "HDss",
+            "baseUrl": "https://hdss.now"
+        },
+        "ikromi": {
+            "name": "Ikromi",
+            "baseUrl": "https://ikromi.com/7x2bv1y/home/ikromi"
+        },
+        "monstream": {
+            "name": "MonStream",
+            "baseUrl": "https://vww.monstream.cafe"
+        },
+        "netmirror": {
+            "name": "NetMirror",
+            "baseUrl": "https://net20.cc/verify"
+        },
+        "nightflix": {
+            "name": "NightFlix",
+            "baseUrl": "https://nightflix.world"
+        },
+        "papadustream": {
+            "name": "PapaduStream",
+            "baseUrl": "https://papadustream.doctor"
+        },
+        "purstream": {
+            "name": "Purstream",
+            "baseUrl": "https://purstream.to"
+        },
+        "recherchestream": {
+            "name": "Recherche-stream",
+            "baseUrl": "https://recherche-stream.xyz/site"
+        },
+        "sadisflix": {
+            "name": "Sadisflix",
+            "baseUrl": "https://sadisflix-officiel.com"
+        },
+        "senpaistream": {
+            "name": "Senpai-Stream",
+            "baseUrl": "https://senpai.wiki"
+        },
+        "stream4free": {
+            "name": "Stream 4 Free",
+            "baseUrl": "https://www.stream4free.tv/tv-live-france"
+        },
+        "streamscape": {
+            "name": "Streamscape",
+            "baseUrl": "https://streamscape.lol/sous-page/index.html"
+        },
+        "wookafr": {
+            "name": "WookaFR",
+            "baseUrl": "https://wookafr.fans"
+        },
+        "wowfilms": {
+            "name": "WoW-Films",
+            "baseUrl": "https://wowfilms1025.site"
+        },
+        "xalaflix": {
+            "name": "XalaFlix",
+            "baseUrl": "https://xalaflix.eu.com"
+        },
+        "yopflix": {
+            "name": "YopFlix",
+            "baseUrl": "https://yopflix.my"
+        }
+    }
 }
