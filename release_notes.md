@@ -1,3 +1,9 @@
+GramFlix v1.4.15
+
+- Ajoute les 31 providers supplementaires (Anime-Sama, BuzzMonclick, Cinepulse, etc.) via `providers.json` afin qu'ils soient pilotes a distance depuis le WebPanel.
+- Revoit le WebPanel (`tafili.fr`) pour supporter 32 entrees avec normalisation des slugs et deduplication case-insensitive avant synchronisation GitHub.
+- Build : `:app:make` (plugin version 20, artefact 75524 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
+
 GramFlix v1.4.14
 
 - Decode les scripts `dt_main_ajax` embarques en data:URI base64 pour restaurer `dtAjax` lorsque WordPress l'injecte dans un `<script src="data:">`.

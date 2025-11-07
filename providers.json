@@ -1,131 +1,131 @@
-{
+﻿{
     "version": 1,
     "providers": {
-        "1jour1film": {
+        "1JOUR1FILM": {
             "name": "1JOUR1FILM",
             "baseUrl": "https://1jour1film1125.site"
         },
-        "animesama": {
+        "AnimeSama": {
             "name": "Anime-Sama",
             "baseUrl": "https://anime-sama.fr"
         },
-        "buzzmonclick": {
+        "BuzzMonclick": {
             "name": "BuzzMonclick",
             "baseUrl": "https://buzzmonclick.io"
         },
-        "cineplateforme": {
+        "CinePlateforme": {
             "name": "CinePlateforme",
             "baseUrl": "https://www.cineplateforme.cc"
         },
-        "cinepulse": {
+        "Cinepulse": {
             "name": "Cinepulse",
             "baseUrl": "https://cinepulse.cc"
         },
-        "cmd-stream": {
+        "CMD-Stream": {
             "name": "CMD-Stream",
             "baseUrl": "https://cmd-stream.xyz"
         },
-        "coflix": {
+        "CoFliX": {
             "name": "CoFliX",
             "baseUrl": "https://coflix.boo"
         },
-        "cpasmal": {
+        "CPasMal": {
             "name": "CPasMal",
             "baseUrl": "https://www.cpasmal.rip"
         },
-        "directfr": {
+        "DirectFR": {
             "name": "DirectFR",
             "baseUrl": "https://directfr.lat"
         },
-        "fanstream": {
+        "Fanstream": {
             "name": "Fanstream",
             "baseUrl": "https://fanstream.fun"
         },
-        "filmoflix": {
+        "FilmoFlix": {
             "name": "FilmoFlix",
             "baseUrl": "https://filmoflix.bike"
         },
-        "flemmix": {
+        "Flemmix": {
             "name": "Flemmix",
             "baseUrl": "https://flemmix.town"
         },
-        "frembed": {
+        "Frembed": {
             "name": "Frembed",
             "baseUrl": "https://frembed.cfd"
         },
-        "frenchstream": {
+        "FrenchStream": {
             "name": "French stream",
             "baseUrl": "https://fs-miroir6.lol"
         },
-        "frenchtvlive": {
+        "FrenchTVLive": {
             "name": "French TV LIVE",
             "baseUrl": "https://fstv.lol"
         },
-        "gogoflix": {
+        "GogoFliX": {
             "name": "GogoFliX",
             "baseUrl": "https://gogoflix.website"
         },
-        "hdss": {
+        "HDss": {
             "name": "HDss",
             "baseUrl": "https://hdss.now"
         },
-        "ikromi": {
+        "Ikromi": {
             "name": "Ikromi",
             "baseUrl": "https://ikromi.com/7x2bv1y/home/ikromi"
         },
-        "monstream": {
+        "MonStream": {
             "name": "MonStream",
             "baseUrl": "https://vww.monstream.cafe"
         },
-        "netmirror": {
+        "NetMirror": {
             "name": "NetMirror",
             "baseUrl": "https://net20.cc/verify"
         },
-        "nightflix": {
+        "NightFlix": {
             "name": "NightFlix",
             "baseUrl": "https://nightflix.world"
         },
-        "papadustream": {
+        "PapaduStream": {
             "name": "PapaduStream",
             "baseUrl": "https://papadustream.doctor"
         },
-        "purstream": {
+        "Purstream": {
             "name": "Purstream",
             "baseUrl": "https://purstream.to"
         },
-        "recherchestream": {
+        "RechercheStream": {
             "name": "Recherche-stream",
             "baseUrl": "https://recherche-stream.xyz/site"
         },
-        "sadisflix": {
+        "Sadisflix": {
             "name": "Sadisflix",
             "baseUrl": "https://sadisflix-officiel.com"
         },
-        "senpaistream": {
+        "SenpaiStream": {
             "name": "Senpai-Stream",
             "baseUrl": "https://senpai.wiki"
         },
-        "stream4free": {
+        "Stream4Free": {
             "name": "Stream 4 Free",
             "baseUrl": "https://www.stream4free.tv/tv-live-france"
         },
-        "streamscape": {
+        "StreamScape": {
             "name": "Streamscape",
             "baseUrl": "https://streamscape.lol/sous-page/index.html"
         },
-        "wookafr": {
+        "WookaFR": {
             "name": "WookaFR",
             "baseUrl": "https://wookafr.fans"
         },
-        "wowfilms": {
+        "WowFilms": {
             "name": "WoW-Films",
             "baseUrl": "https://wowfilms1025.site"
         },
-        "xalaflix": {
+        "XalaFlix": {
             "name": "XalaFlix",
             "baseUrl": "https://xalaflix.eu.com"
         },
-        "yopflix": {
+        "YopFlix": {
             "name": "YopFlix",
             "baseUrl": "https://yopflix.my"
         }

@@ -1,3 +1,10 @@
+GramFlix v1.4.15
+----------------
+
+- Ajoute 31 nouveaux providers (Anime-Sama, BuzzMonclick, Cinepulse, etc.) dans `providers.json` afin qu'ils soient selectionnables depuis Cloudstream sans rebuild.
+- Webpanel `tafili.fr` : normalisation/deduplication des slugs cote API + dataset `data/providers.json` prerempli avec les 32 entrees (1J1F + 31 sites).
+- Rebuilt package (`:app:make`, artefact 75524 octets, plugin version 20).
+
 GramFlix v1.4.14
 ----------------
 
