@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="[https://github.com/x-R0b0T-x/GramFlix/blob/main/Logo.jpg](https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg)" alt="GRAMFLIX" width="320"/>
+  <img src="https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg" alt="GRAMFLIX" width="320"/>
 </p>
 
 <p align="center"> GRAMFLIX </p>
