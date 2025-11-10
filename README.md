@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://github.com/x-R0b0T-x/GramFlix/blob/main/Logo.jpg" alt="GRAMFLIX" width="320"/>
+  <img src="[https://github.com/x-R0b0T-x/GramFlix/blob/main/Logo.jpg](https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg)" alt="GRAMFLIX" width="320"/>
 </p>
 
-<p align="center"> **GRAMFLIX** </p>
+<p align="center"> GRAMFLIX </p>
 
 Le streaming français sans limite, tout-en-un pour CloudStream !
 
