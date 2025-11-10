@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg" alt="GRAMFLIX" width="320"/>
 </p>
 
-<p align="center"> GRAMFLIX </p>
+##<p align="center"> GRAMFLIX </p>
 
 Le streaming français sans limite, tout-en-un pour CloudStream !
 
