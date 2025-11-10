@@ -4,7 +4,8 @@
 
 <p align="center">Le streaming français sans limite, tout-en-un pour <a href="https://github.com/recloudstream/cloudstream/"><b>CloudStream<b></a> !
 
-Films, séries, animés : toutes les meilleures sources françaises enfin réunies au même endroit.</p>
+Films, séries, animés : toutes les meilleures sources françaises enfin réunies au même endroit.
+</p>
 
 ---
 
