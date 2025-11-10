@@ -26,7 +26,6 @@ Films, séries, animés : toutes les meilleures sources françaises enfin réuni
 
 🎬 Films & Séries
 - 1Jour1Film
-- BuzzMonClick
 - CMD-Stream
 - Coflix
 - Cpasmal
@@ -50,6 +49,7 @@ Films, séries, animés : toutes les meilleures sources françaises enfin réuni
 - Nebryx
 
 📺 TV & Replay
+- BuzzMonClick
 - CpasMieux
 - iKromi
 
