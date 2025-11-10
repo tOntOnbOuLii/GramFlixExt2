@@ -2,9 +2,9 @@
   <img src="https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg" alt="GRAMFLIX" width="320"/>
 </p>
 
-Le streaming français sans limite, tout-en-un pour <a href="https://github.com/recloudstream/cloudstream/"><b>CloudStream<b></a> !
+<p align="center">Le streaming français sans limite, tout-en-un pour <a href="https://github.com/recloudstream/cloudstream/"><b>CloudStream<b></a> !
 
-Films, séries, animés : toutes les meilleures sources françaises enfin réunies au même endroit.
+Films, séries, animés : toutes les meilleures sources françaises enfin réunies au même endroit.</p>
 
 ---
 
