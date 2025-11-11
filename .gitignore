@@ -12,7 +12,8 @@ build/
 .DS_Store
 
 # Panel runtime data and secrets
-tafili.fr/data/
+tafili.fr/data/*
+!tafili.fr/data/rules.json
 tafili.fr/config.local.php
 *.tmp
 
