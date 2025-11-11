@@ -38,6 +38,7 @@ import java.util.LinkedHashMap
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -126,6 +127,13 @@ class ConfigDrivenProvider : MainAPI() {
         private const val FALLBACK_HOME_KEY = "__fallback__"
         private val UNS_AES_KEY = "kiemtienmua911ca".toByteArray(Charsets.UTF_8)
         private val UNS_AES_IV = "1234567890oiuytr".toByteArray(Charsets.UTF_8)
+        private const val NEBRYX_SLUG = "nebryx"
+        private const val NEBRYX_SCHEME = "nebryx://"
+        private const val TMDB_API_BASE = "https://api.themoviedb.org/3"
+        private const val TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+        private const val TMDB_DEFAULT_LANGUAGE = "fr-FR"
+        private const val DEFAULT_NEBRYX_BASE = "https://nebryx.fr"
+        private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
     }
 
     private fun originFrom(url: String?): String? {
@@ -307,6 +315,166 @@ class ConfigDrivenProvider : MainAPI() {
         RulesConfig.ensureLoaded()
     }
 
+    private suspend fun tmdbGet(
+        path: String,
+        params: Map<String, String> = emptyMap()
+    ): JSONObject? {
+        if (TMDB_API_KEY.isBlank()) return null
+        val query = LinkedHashMap<String, String>()
+        query["api_key"] = TMDB_API_KEY
+        query["language"] = TMDB_DEFAULT_LANGUAGE
+        for ((key, value) in params) {
+            if (value.isNotBlank()) {
+                query[key] = value
+            }
+        }
+        val queryString = query.entries.joinToString("&") { (key, value) ->
+            val encodedKey = URLEncoder.encode(key, StandardCharsets.UTF_8.name())
+            val encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+            "$encodedKey=$encodedValue"
+        }
+        val url = buildString {
+            append(TMDB_API_BASE)
+            append(path)
+            if (queryString.isNotBlank()) {
+                append("?")
+                append(queryString)
+            }
+        }
+        val response = runCatching { fetchJson(url) }.getOrNull() ?: return null
+        val body = response.text ?: return null
+        return runCatching { JSONObject(body) }.getOrNull()
+    }
+
+    private fun buildNebryxPoster(path: String?): String? {
+        val clean = path?.trim().takeUnless { it.isNullOrBlank() } ?: return null
+        return "$TMDB_IMAGE_BASE$clean"
+    }
+
+    private fun tmdbReleaseYear(value: String?): Int? {
+        if (value.isNullOrBlank() || value.length < 4) return null
+        return value.substring(0, 4).toIntOrNull()
+    }
+
+    private fun buildNebryxResponses(
+        meta: ProviderMeta,
+        array: JSONArray?,
+        limit: Int,
+        includeProvider: Boolean
+    ): List<SearchResponse> {
+        if (array == null || array.length() == 0) return emptyList()
+        val responses = ArrayList<SearchResponse>()
+        val maxItems = min(limit, array.length())
+        for (index in 0 until maxItems) {
+            val obj = array.optJSONObject(index) ?: continue
+            val id = obj.optInt("id")
+            if (id <= 0) continue
+            val title = obj.optString("title").takeIf { it.isNotBlank() } ?: continue
+            val poster = buildNebryxPoster(obj.optString("poster_path"))
+            val url = buildNebryxUrl("movie", id)
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = url,
+                poster = poster,
+                includeProvider = includeProvider,
+                query = null,
+                tvType = TvType.Movie
+            ) ?: continue
+            val year = tmdbReleaseYear(obj.optString("release_date"))
+            if (year != null) {
+                (item.response as? MovieSearchResponse)?.year = year
+            }
+            responses += item.response
+        }
+        return responses
+    }
+
+    private suspend fun searchNebryx(meta: ProviderMeta, query: String): List<SearchItem> {
+        if (query.isBlank()) return emptyList()
+        val json = tmdbGet("/search/movie", mapOf("query" to query, "page" to "1")) ?: return emptyList()
+        val results = json.optJSONArray("results") ?: return emptyList()
+        val items = mutableListOf<SearchItem>()
+        for (index in 0 until results.length()) {
+            val obj = results.optJSONObject(index) ?: continue
+            val id = obj.optInt("id")
+            if (id <= 0) continue
+            val title = obj.optString("title").takeIf { it.isNotBlank() } ?: continue
+            val poster = buildNebryxPoster(obj.optString("poster_path"))
+            val url = buildNebryxUrl("movie", id)
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = url,
+                poster = poster,
+                includeProvider = true,
+                query = query,
+                tvType = TvType.Movie
+            ) ?: continue
+            val year = tmdbReleaseYear(obj.optString("release_date"))
+            if (year != null) {
+                (item.response as? MovieSearchResponse)?.year = year
+            }
+            items += item
+        }
+        return items
+    }
+
+    private suspend fun fetchNebryxHome(meta: ProviderMeta): List<HomePageList> {
+        val sections = mutableListOf<HomePageList>()
+        val endpoints = listOf(
+            "Films populaires" to "/movie/popular",
+            "Top films" to "/movie/top_rated",
+            "Sorties a venir" to "/movie/upcoming"
+        )
+        for ((label, path) in endpoints) {
+            val json = tmdbGet(path) ?: continue
+            val entries = buildNebryxResponses(meta, json.optJSONArray("results"), limit = 20, includeProvider = false)
+            if (entries.isNotEmpty()) {
+                sections += HomePageList("${meta.displayName} - $label", entries)
+            }
+        }
+        return sections
+    }
+
+    private suspend fun loadNebryx(url: String): LoadResponse? {
+        val (_, tmdbId) = parseNebryxUrl(url) ?: return null
+        val json = tmdbGet("/movie/$tmdbId") ?: return null
+        val title = json.optString("title").takeIf { it.isNotBlank() } ?: json.optString("name").takeIf { it.isNotBlank() } ?: "Nebryx"
+        val overview = json.optString("overview").takeIf { it.isNotBlank() }
+        val poster = buildNebryxPoster(json.optString("poster_path"))
+        val year = tmdbReleaseYear(json.optString("release_date"))
+        val imdbId = json.optString("imdb_id").takeIf { it.isNotBlank() }
+        val dataPayload = encodeLoadData(
+            url = url,
+            slug = NEBRYX_SLUG,
+            imdbId = imdbId,
+            title = title,
+            poster = poster,
+            year = year
+        )
+        return newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) {
+            overview?.let { plot = it }
+            poster?.let { posterUrl = it }
+            year?.let { this.year = it }
+        }
+    }
+
+    private suspend fun loadNebryxLinks(
+        data: LoadData,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val (type, tmdbId) = parseNebryxUrl(data.url) ?: return false
+        if (type != "movie") return false
+        val embedUrl = "https://frembed.mom/api/film.php?id=$tmdbId"
+        val referer = nebryxBaseUrl()
+        return runCatching {
+            loadExtractor(embedUrl, referer, subtitleCallback, callback)
+            true
+        }.getOrElse { false }
+    }
+
     private fun gatherProviders(): List<ProviderMeta> {
         val providers = RemoteConfig.providersObject() ?: return emptyList()
         val list = mutableListOf<ProviderMeta>()
@@ -324,6 +492,28 @@ class ConfigDrivenProvider : MainAPI() {
             )
         }
         return list.sortedBy { it.displayName.lowercase(Locale.ROOT) }
+    }
+
+    private fun isNebryx(meta: ProviderMeta?): Boolean =
+        meta?.slug?.equals(NEBRYX_SLUG, ignoreCase = true) == true
+
+    private fun isNebryxSlug(slug: String?): Boolean =
+        slug?.equals(NEBRYX_SLUG, ignoreCase = true) == true
+
+    private fun nebryxBaseUrl(): String =
+        RemoteConfig.getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE) ?: DEFAULT_NEBRYX_BASE
+
+    private fun buildNebryxUrl(type: String, tmdbId: Int): String =
+        "${NEBRYX_SCHEME}${type.lowercase(Locale.ROOT)}/$tmdbId"
+
+    private fun parseNebryxUrl(url: String): Pair<String, Int>? {
+        if (!url.startsWith(NEBRYX_SCHEME, ignoreCase = true)) return null
+        val payload = url.removePrefix(NEBRYX_SCHEME).trim('/')
+        val parts = payload.split("/")
+        if (parts.size != 2) return null
+        val type = parts[0].lowercase(Locale.ROOT)
+        val id = parts[1].toIntOrNull() ?: return null
+        return type to id
     }
 
     private fun normalizeHost(url: String): String? {
@@ -1220,6 +1410,10 @@ class ConfigDrivenProvider : MainAPI() {
         val results = mutableListOf<SearchItem>()
         for (meta in metas) {
             try {
+                if (isNebryx(meta)) {
+                    results += searchNebryx(meta, query)
+                    continue
+                }
                 val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
                 val response = fetchHtml(url, referer = meta.baseUrl)
                 val doc = response.document
@@ -1282,6 +1476,13 @@ class ConfigDrivenProvider : MainAPI() {
                 try {
                     val dedupe = hashSetOf<String>()
                     var handled = false
+                    if (isNebryx(meta) && (page == 1 || requestedSlug != null)) {
+                        val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
+                        if (nebryxLists.isNotEmpty()) {
+                            lists.addAll(nebryxLists)
+                            handled = true
+                        }
+                    }
                     if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
                         val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
                         if (apiSections.isNotEmpty()) {
@@ -1468,6 +1669,9 @@ class ConfigDrivenProvider : MainAPI() {
                     item.year?.let { year = it }
                 }
             }
+            if (url.startsWith(NEBRYX_SCHEME, ignoreCase = true)) {
+                return loadNebryx(url)
+            }
             ensureRemoteConfigs()
             val metas = gatherProviders()
             val cachedSlug = findSlugForUrl(url)
@@ -1509,6 +1713,9 @@ class ConfigDrivenProvider : MainAPI() {
                     loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, callback)
                     true
                 }.getOrElse { false }
+            }
+            if (pageUrl.startsWith(NEBRYX_SCHEME, ignoreCase = true) || isNebryxSlug(loadData.slug)) {
+                return loadNebryxLinks(loadData, subtitleCallback, callback)
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
