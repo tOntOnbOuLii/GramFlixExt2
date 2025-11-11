@@ -1,5 +1,6 @@
 package com.gramflix.extensions.providers
 
+import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -11,9 +12,11 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
@@ -31,6 +34,8 @@ import org.jsoup.Jsoup
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.text.Normalizer
 import java.util.ArrayList
 import java.util.Base64
@@ -114,6 +119,13 @@ class ConfigDrivenProvider : MainAPI() {
         val title: String,
         val poster: String?,
         val year: Int?
+    )
+
+    private data class NebryxEntry(
+        val type: String,
+        val tmdbId: Int,
+        val season: Int? = null,
+        val episode: Int? = null
     )
 
     companion object {
@@ -270,6 +282,11 @@ class ConfigDrivenProvider : MainAPI() {
     private val noiseTitleRegex = Regex("(?i)^(HD|HDLIGHT|HDCAM|CAM|FRENCH|TRUEFRENCH|VOSTFR|VF|VO|MULTI|SERIE|SERIES|FILM|EPISODE|EP)$")
     private val yearRegex = Regex("\\b(19|20)\\d{2}\\b")
     private val accentRegex = Regex("\\p{Mn}+")
+    private val seasonLabelRegex = Regex("(?i)(season|saison)\\s*(\\d+)")
+    private val seasonEpisodeComboRegex =
+        Regex("(?i)(?:s|season|saison)\\s*(\\d+)[^\\d]+(?:e|ep|episode)?\\s*(\\d+)")
+    private val dualNumberRegex = Regex("(\\d+)\\s*[-x]\\s*(\\d+)")
+    private val digitsRegex = Regex("\\d+")
     private val urlSlugLock = Any()
     private val urlSlugCache = object : LinkedHashMap<String, String>(512, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 1024
@@ -356,22 +373,34 @@ class ConfigDrivenProvider : MainAPI() {
         return value.substring(0, 4).toIntOrNull()
     }
 
+    private fun parseIsoDateToMillis(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        return runCatching {
+            val date = LocalDate.parse(value.trim())
+            date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        }.getOrNull()
+    }
+
     private fun buildNebryxResponses(
         meta: ProviderMeta,
         array: JSONArray?,
         limit: Int,
-        includeProvider: Boolean
+        includeProvider: Boolean,
+        type: String,
+        tvType: TvType
     ): List<SearchResponse> {
         if (array == null || array.length() == 0) return emptyList()
         val responses = ArrayList<SearchResponse>()
         val maxItems = min(limit, array.length())
+        val titleKey = if (type.equals("tv", ignoreCase = true)) "name" else "title"
+        val dateKey = if (type.equals("tv", ignoreCase = true)) "first_air_date" else "release_date"
         for (index in 0 until maxItems) {
             val obj = array.optJSONObject(index) ?: continue
             val id = obj.optInt("id")
             if (id <= 0) continue
-            val title = obj.optString("title").takeIf { it.isNotBlank() } ?: continue
+            val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
             val poster = buildNebryxPoster(obj.optString("poster_path"))
-            val url = buildNebryxUrl("movie", id)
+            val url = buildNebryxUrl(type, id)
             val item = createSearchItem(
                 meta = meta,
                 title = title,
@@ -379,10 +408,10 @@ class ConfigDrivenProvider : MainAPI() {
                 poster = poster,
                 includeProvider = includeProvider,
                 query = null,
-                tvType = TvType.Movie
+                tvType = tvType
             ) ?: continue
-            val year = tmdbReleaseYear(obj.optString("release_date"))
-            if (year != null) {
+            val year = tmdbReleaseYear(obj.optString(dateKey))
+            if (year != null && tvType == TvType.Movie) {
                 (item.response as? MovieSearchResponse)?.year = year
             }
             responses += item.response
@@ -392,16 +421,38 @@ class ConfigDrivenProvider : MainAPI() {
 
     private suspend fun searchNebryx(meta: ProviderMeta, query: String): List<SearchItem> {
         if (query.isBlank()) return emptyList()
-        val json = tmdbGet("/search/movie", mapOf("query" to query, "page" to "1")) ?: return emptyList()
+        val json = tmdbGet("/search/multi", mapOf("query" to query, "page" to "1")) ?: return emptyList()
         val results = json.optJSONArray("results") ?: return emptyList()
         val items = mutableListOf<SearchItem>()
+        val seen = hashSetOf<String>()
         for (index in 0 until results.length()) {
             val obj = results.optJSONObject(index) ?: continue
             val id = obj.optInt("id")
             if (id <= 0) continue
-            val title = obj.optString("title").takeIf { it.isNotBlank() } ?: continue
+            val mediaType = obj.optString("media_type").lowercase(Locale.ROOT)
+            val titleKey: String
+            val dateKey: String
+            val tvType: TvType
+            val typeSlug: String
+            when (mediaType) {
+                "movie" -> {
+                    titleKey = "title"
+                    dateKey = "release_date"
+                    tvType = TvType.Movie
+                    typeSlug = "movie"
+                }
+                "tv" -> {
+                    titleKey = "name"
+                    dateKey = "first_air_date"
+                    tvType = TvType.TvSeries
+                    typeSlug = "tv"
+                }
+                else -> continue
+            }
+            val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
             val poster = buildNebryxPoster(obj.optString("poster_path"))
-            val url = buildNebryxUrl("movie", id)
+            val url = buildNebryxUrl(typeSlug, id)
+            if (!seen.add("$typeSlug-$id")) continue
             val item = createSearchItem(
                 meta = meta,
                 title = title,
@@ -409,11 +460,13 @@ class ConfigDrivenProvider : MainAPI() {
                 poster = poster,
                 includeProvider = true,
                 query = query,
-                tvType = TvType.Movie
+                tvType = tvType
             ) ?: continue
-            val year = tmdbReleaseYear(obj.optString("release_date"))
-            if (year != null) {
-                (item.response as? MovieSearchResponse)?.year = year
+            if (tvType == TvType.Movie) {
+                val year = tmdbReleaseYear(obj.optString(dateKey))
+                if (year != null) {
+                    (item.response as? MovieSearchResponse)?.year = year
+                }
             }
             items += item
         }
@@ -423,13 +476,23 @@ class ConfigDrivenProvider : MainAPI() {
     private suspend fun fetchNebryxHome(meta: ProviderMeta): List<HomePageList> {
         val sections = mutableListOf<HomePageList>()
         val endpoints = listOf(
-            "Films populaires" to "/movie/popular",
-            "Top films" to "/movie/top_rated",
-            "Sorties a venir" to "/movie/upcoming"
+            Triple("Films populaires", "/movie/popular", TvType.Movie),
+            Triple("Top films", "/movie/top_rated", TvType.Movie),
+            Triple("Sorties a venir", "/movie/upcoming", TvType.Movie),
+            Triple("Series populaires", "/tv/popular", TvType.TvSeries),
+            Triple("Top series", "/tv/top_rated", TvType.TvSeries)
         )
-        for ((label, path) in endpoints) {
+        for ((label, path, tvType) in endpoints) {
             val json = tmdbGet(path) ?: continue
-            val entries = buildNebryxResponses(meta, json.optJSONArray("results"), limit = 20, includeProvider = false)
+            val typeSlug = if (path.contains("/tv/")) "tv" else "movie"
+            val entries = buildNebryxResponses(
+                meta = meta,
+                array = json.optJSONArray("results"),
+                limit = 20,
+                includeProvider = false,
+                type = typeSlug,
+                tvType = tvType
+            )
             if (entries.isNotEmpty()) {
                 sections += HomePageList("${meta.displayName} - $label", entries)
             }
@@ -437,23 +500,86 @@ class ConfigDrivenProvider : MainAPI() {
         return sections
     }
 
+    private suspend fun buildNebryxEpisodes(tmdbId: Int, seasons: JSONArray?): List<Episode> {
+        if (seasons == null || seasons.length() == 0) return emptyList()
+        val episodes = mutableListOf<Episode>()
+        for (i in 0 until seasons.length()) {
+            val seasonObj = seasons.optJSONObject(i) ?: continue
+            val seasonNumber = seasonObj.optInt("season_number")
+            if (seasonNumber <= 0) continue
+            val seasonJson = tmdbGet("/tv/$tmdbId/season/$seasonNumber") ?: continue
+            val eps = seasonJson.optJSONArray("episodes") ?: continue
+            for (j in 0 until eps.length()) {
+                val episodeObj = eps.optJSONObject(j) ?: continue
+                val episodeNumber = episodeObj.optInt("episode_number")
+                if (episodeNumber <= 0) continue
+                val epTitle = episodeObj.optString("name").takeIf { it.isNotBlank() } ?: "Episode $episodeNumber"
+                val epUrl = buildNebryxUrl("tv", tmdbId, seasonNumber, episodeNumber)
+                val encoded = encodeLoadData(epUrl, NEBRYX_SLUG)
+                val still = buildNebryxPoster(episodeObj.optString("still_path"))
+                val overview = episodeObj.optString("overview").takeIf { it.isNotBlank() }
+                val runtime = episodeObj.optInt("runtime").takeIf { it > 0 }
+                val airDate = parseIsoDateToMillis(episodeObj.optString("air_date"))
+                episodes += newEpisode(encoded) {
+                    name = epTitle
+                    season = seasonNumber
+                    episode = episodeNumber
+                    posterUrl = still
+                    description = overview
+                    date = airDate
+                    runTime = runtime
+                }
+            }
+        }
+        return episodes
+    }
+
     private suspend fun loadNebryx(url: String): LoadResponse? {
-        val (_, tmdbId) = parseNebryxUrl(url) ?: return null
+        val entry = parseNebryxUrl(url) ?: return null
+        return when (entry.type) {
+            "movie" -> loadNebryxMovie(entry)
+            "tv" -> loadNebryxSeries(entry)
+            else -> null
+        }
+    }
+
+    private suspend fun loadNebryxMovie(entry: NebryxEntry): LoadResponse? {
+        val tmdbId = entry.tmdbId
         val json = tmdbGet("/movie/$tmdbId") ?: return null
         val title = json.optString("title").takeIf { it.isNotBlank() } ?: json.optString("name").takeIf { it.isNotBlank() } ?: "Nebryx"
         val overview = json.optString("overview").takeIf { it.isNotBlank() }
         val poster = buildNebryxPoster(json.optString("poster_path"))
         val year = tmdbReleaseYear(json.optString("release_date"))
         val imdbId = json.optString("imdb_id").takeIf { it.isNotBlank() }
+        val canonicalUrl = buildNebryxUrl("movie", tmdbId)
         val dataPayload = encodeLoadData(
-            url = url,
+            url = canonicalUrl,
             slug = NEBRYX_SLUG,
             imdbId = imdbId,
             title = title,
             poster = poster,
             year = year
         )
-        return newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) {
+        return newMovieLoadResponse(title, canonicalUrl, TvType.Movie, dataUrl = dataPayload) {
+            overview?.let { plot = it }
+            poster?.let { posterUrl = it }
+            year?.let { this.year = it }
+        }
+    }
+
+    private suspend fun loadNebryxSeries(entry: NebryxEntry): LoadResponse? {
+        val tmdbId = entry.tmdbId
+        val json = tmdbGet("/tv/$tmdbId") ?: return null
+        val title = json.optString("name").takeIf { it.isNotBlank() }
+            ?: json.optString("original_name").takeIf { it.isNotBlank() }
+            ?: "Nebryx"
+        val overview = json.optString("overview").takeIf { it.isNotBlank() }
+        val poster = buildNebryxPoster(json.optString("poster_path"))
+        val year = tmdbReleaseYear(json.optString("first_air_date"))
+        val episodes = buildNebryxEpisodes(tmdbId, json.optJSONArray("seasons"))
+        if (episodes.isEmpty()) return null
+        val canonicalUrl = buildNebryxUrl("tv", tmdbId)
+        return newTvSeriesLoadResponse(title, canonicalUrl, TvType.TvSeries, episodes) {
             overview?.let { plot = it }
             poster?.let { posterUrl = it }
             year?.let { this.year = it }
@@ -465,14 +591,27 @@ class ConfigDrivenProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val (type, tmdbId) = parseNebryxUrl(data.url) ?: return false
-        if (type != "movie") return false
-        val embedUrl = "https://frembed.mom/api/film.php?id=$tmdbId"
+        val entry = parseNebryxUrl(data.url) ?: return false
         val referer = nebryxBaseUrl()
-        return runCatching {
-            loadExtractor(embedUrl, referer, subtitleCallback, callback)
-            true
-        }.getOrElse { false }
+        return when (entry.type) {
+            "movie" -> {
+                val embedUrl = "https://frembed.mom/api/film.php?id=${entry.tmdbId}"
+                runCatching {
+                    loadExtractor(embedUrl, referer, subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+            }
+            "tv" -> {
+                val season = entry.season ?: return false
+                val episode = entry.episode ?: return false
+                val embedUrl = "https://frembed.mom/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
+                runCatching {
+                    loadExtractor(embedUrl, referer, subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+            }
+            else -> false
+        }
     }
 
     private fun gatherProviders(): List<ProviderMeta> {
@@ -503,17 +642,42 @@ class ConfigDrivenProvider : MainAPI() {
     private fun nebryxBaseUrl(): String =
         RemoteConfig.getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE) ?: DEFAULT_NEBRYX_BASE
 
-    private fun buildNebryxUrl(type: String, tmdbId: Int): String =
-        "${NEBRYX_SCHEME}${type.lowercase(Locale.ROOT)}/$tmdbId"
+    private fun buildNebryxUrl(type: String, tmdbId: Int, season: Int? = null, episode: Int? = null): String {
+        val base = "${NEBRYX_SCHEME}${type.lowercase(Locale.ROOT)}/$tmdbId"
+        if (season != null && episode != null) {
+            return "$base?season=$season&episode=$episode"
+        }
+        return base
+    }
 
-    private fun parseNebryxUrl(url: String): Pair<String, Int>? {
+    private fun parseNebryxUrl(url: String): NebryxEntry? {
         if (!url.startsWith(NEBRYX_SCHEME, ignoreCase = true)) return null
-        val payload = url.removePrefix(NEBRYX_SCHEME).trim('/')
-        val parts = payload.split("/")
-        if (parts.size != 2) return null
-        val type = parts[0].lowercase(Locale.ROOT)
-        val id = parts[1].toIntOrNull() ?: return null
-        return type to id
+        val uri = runCatching { URI(url) }.getOrNull() ?: return null
+        val payload = uri.schemeSpecificPart?.removePrefix("//") ?: uri.schemeSpecificPart ?: return null
+        val trimmed = payload.trim('/').takeIf { it.isNotBlank() } ?: return null
+        val parts = trimmed.split("?")
+        val path = parts.first()
+        val pathParts = path.split("/")
+        if (pathParts.size != 2) return null
+        val type = pathParts[0].lowercase(Locale.ROOT)
+        val id = pathParts[1].toIntOrNull() ?: return null
+        val query = uri.rawQuery.orEmpty()
+        var season: Int? = null
+        var episode: Int? = null
+        if (query.isNotBlank()) {
+            query.split("&").forEach { token ->
+                val kv = token.split("=")
+                if (kv.size == 2) {
+                    val key = kv[0].lowercase(Locale.ROOT)
+                    val value = kv[1].toIntOrNull()
+                    when (key) {
+                        "season", "sa" -> season = value
+                        "episode", "ep", "epi" -> episode = value
+                    }
+                }
+            }
+        }
+        return NebryxEntry(type, id, season, episode)
     }
 
     private fun normalizeHost(url: String): String? {
@@ -1186,6 +1350,191 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private fun parseSeasonNumberFromText(text: String?): Int? {
+        if (text.isNullOrBlank()) return null
+        seasonLabelRegex.find(text)?.let { match ->
+            return match.groupValues.getOrNull(2)?.toIntOrNull()
+        }
+        val digits = digitsRegex.find(text)?.value?.toIntOrNull()
+        return digits
+    }
+
+    private fun parseEpisodeNumbersFromText(text: String?): Pair<Int?, Int?> {
+        if (text.isNullOrBlank()) return null to null
+        val normalized = text.replace("–", "-").replace("—", "-")
+        seasonEpisodeComboRegex.find(normalized)?.let { match ->
+            val season = match.groupValues.getOrNull(1)?.toIntOrNull()
+            val episode = match.groupValues.getOrNull(2)?.toIntOrNull()
+            return season to episode
+        }
+        dualNumberRegex.find(normalized)?.let { match ->
+            val first = match.groupValues.getOrNull(1)?.toIntOrNull()
+            val second = match.groupValues.getOrNull(2)?.toIntOrNull()
+            return first to second
+        }
+        val numbers = digitsRegex.findAll(normalized)
+            .mapNotNull { it.value.toIntOrNull() }
+            .toList()
+        return when {
+            numbers.size >= 2 -> numbers[0] to numbers[1]
+            numbers.size == 1 -> null to numbers[0]
+            else -> null to null
+        }
+    }
+
+    private fun resolveImageSource(element: Element, pageUrl: String): String? {
+        val attributes = listOf("data-src", "data-lazy-src", "data-original", "data-url", "srcset", "src")
+        for (attr in attributes) {
+            val raw = element.attr(attr).takeIf { it.isNotBlank() } ?: continue
+            val candidate = if (attr.contains("srcset", ignoreCase = true)) {
+                raw.split(",")
+                    .mapNotNull { it.trim().split(" ").firstOrNull() }
+                    .firstOrNull { it.isNotBlank() }
+            } else raw
+            val sanitized = candidate?.trim()?.takeIf { it.isNotBlank() } ?: continue
+            if (sanitized.startsWith("data:", ignoreCase = true)) continue
+            val absolute = when {
+                sanitized.startsWith("http", ignoreCase = true) -> sanitized
+                else -> resolveAgainst(pageUrl, sanitized)
+            }
+            if (!absolute.isNullOrBlank()) return absolute
+        }
+        return null
+    }
+
+    private fun extractEpisodePoster(element: Element, pageUrl: String): String? {
+        val img = element.selectFirst("img[data-src], img[data-lazy-src], img[data-original], img[srcset], img[src]")
+            ?: return null
+        return resolveImageSource(img, pageUrl)
+    }
+
+    private fun extractPosterFromDoc(doc: Document, pageUrl: String): String? {
+        val selectors = listOf(
+            ".sheader .poster img",
+            ".poster img",
+            ".featured img",
+            ".featured-image img",
+            ".wp-post-image"
+        )
+        for (selector in selectors) {
+            val element = doc.selectFirst(selector) ?: continue
+            val resolved = resolveImageSource(element, pageUrl)
+            if (!resolved.isNullOrBlank()) return resolved
+        }
+        val metaOg = doc.selectFirst("meta[property=og:image], meta[name=og:image]")?.attr("content")
+        if (!metaOg.isNullOrBlank() && !metaOg.startsWith("data:", ignoreCase = true)) {
+            return metaOg
+        }
+        return null
+    }
+
+    private fun collectEpisodesFromElements(
+        elements: Iterable<Element>,
+        defaultSeason: Int?,
+        meta: ProviderMeta?,
+        pageUrl: String,
+        seen: MutableSet<String>
+    ): List<Episode> {
+        val results = mutableListOf<Episode>()
+        var index = 0
+        for (element in elements) {
+            index++
+            val anchor = element.selectFirst("a[href], .episodiotitle a") ?: continue
+            val linkCandidates = listOf("href", "data-href", "data-url", "data-link")
+            var target: String? = null
+            for (attr in linkCandidates) {
+                val raw = anchor.attr(attr).takeIf { it.isNotBlank() }
+                    ?: element.attr(attr).takeIf { it.isNotBlank() }
+                if (raw.isNullOrBlank()) continue
+                target = when {
+                    raw.startsWith("http", ignoreCase = true) -> raw
+                    raw.startsWith("javascript", ignoreCase = true) -> null
+                    else -> resolveAgainst(pageUrl, raw)
+                }
+                if (!target.isNullOrBlank()) break
+            }
+            if (target.isNullOrBlank()) continue
+            if (!seen.add(target)) continue
+            meta?.slug?.let { rememberSlugForUrl(target, it) }
+            val rawTitle = anchor.text().ifBlank {
+                element.selectFirst(".episodiotitle")?.text()
+            }?.trim()
+            val title = rawTitle?.takeIf { it.isNotBlank() } ?: "Episode $index"
+            val numberText = element.selectFirst(".numerando")?.text()
+                ?: element.attr("data-title")
+                ?: anchor.attr("title")
+            val (seasonFromText, episodeFromText) = parseEpisodeNumbersFromText(numberText)
+            val seasonAttr = element.attr("data-season").toIntOrNull()
+            val episodeAttr = element.attr("data-episode").toIntOrNull()
+            val seasonNumber = seasonAttr ?: seasonFromText ?: defaultSeason ?: 1
+            val episodeNumber = episodeAttr ?: episodeFromText ?: element.attr("data-num").toIntOrNull() ?: index
+            val poster = extractEpisodePoster(element, pageUrl)
+            val encoded = encodeLoadData(target, meta?.slug)
+            results += newEpisode(encoded) {
+                name = title
+                season = seasonNumber
+                episode = episodeNumber
+                posterUrl = poster
+            }
+        }
+        return results
+    }
+
+    private fun parseTvEpisodes(meta: ProviderMeta?, doc: Document, pageUrl: String): List<Episode> {
+        val results = mutableListOf<Episode>()
+        val seen = hashSetOf<String>()
+        val seasonSelectors = listOf(
+            "#seasons .se-c",
+            ".seasons .se-c",
+            ".season_list .se-c",
+            ".items_seasons .se-c"
+        )
+        var foundContainers: List<Element> = emptyList()
+        for (selector in seasonSelectors) {
+            val found = doc.select(selector)
+            if (found.isNotEmpty()) {
+                foundContainers = found.toList()
+                break
+            }
+        }
+        if (foundContainers.isNotEmpty()) {
+            var fallbackSeason = 1
+            for (container in foundContainers) {
+                val headerText = container.selectFirst(".se-q .se-t, .se-q .title, .se-q")?.text()
+                val seasonNumber = container.attr("data-season").toIntOrNull()
+                    ?: parseSeasonNumberFromText(headerText)
+                    ?: fallbackSeason++
+                val episodeElements = container.select("div.se-a ul li, ul.episodios li")
+                if (episodeElements.isNotEmpty()) {
+                    results += collectEpisodesFromElements(
+                        episodeElements,
+                        seasonNumber,
+                        meta,
+                        pageUrl,
+                        seen
+                    )
+                }
+            }
+        }
+        if (results.isEmpty()) {
+            val fallbackSelectors = listOf(
+                "#episodes li",
+                ".episodes li",
+                ".episodios li",
+                ".episode-list li",
+                ".items.episodes li"
+            )
+            for (selector in fallbackSelectors) {
+                val fallbackItems = doc.select(selector)
+                if (fallbackItems.isNotEmpty()) {
+                    results += collectEpisodesFromElements(fallbackItems, null, meta, pageUrl, seen)
+                    if (results.isNotEmpty()) break
+                }
+            }
+        }
+        return results
+    }
+
     private fun createSearchItem(
         meta: ProviderMeta,
         title: String,
@@ -1685,12 +2034,26 @@ class ConfigDrivenProvider : MainAPI() {
             val referer = meta?.baseUrl ?: url
             val response = fetchHtml(url, referer = referer)
             val doc = response.document
+            val pageLocation = doc.location().ifBlank { url }
             val description = extractDescriptionFromDoc(doc)
                 ?: fetchWordpressDescription(url, meta?.baseUrl ?: url)
             val title = doc.selectFirst("title")?.text()?.trim()?.ifBlank { null } ?: meta?.displayName ?: name
+            val poster = extractPosterFromDoc(doc, pageLocation)
+            val episodes = parseTvEpisodes(meta, doc, pageLocation)
+            if (episodes.isNotEmpty()) {
+                val seriesType = when (determineTvType(meta, url, null)) {
+                    TvType.Anime -> TvType.Anime
+                    else -> TvType.TvSeries
+                }
+                return newTvSeriesLoadResponse(title, url, seriesType, episodes) {
+                    description?.let { plot = it }
+                    poster?.let { posterUrl = it }
+                }
+            }
             val dataPayload = encodeLoadData(url, meta?.slug)
             newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) {
                 description?.let { plot = it }
+                poster?.let { posterUrl = it }
             }
         } catch (_: Throwable) {
             null
