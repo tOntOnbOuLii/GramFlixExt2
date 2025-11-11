@@ -77,4 +77,13 @@ object HostersConfig {
     }
 
     fun hostersObject(): JSONObject? = cached?.optJSONObject("hosters")
+
+    fun primeFromAssets(androidContext: android.content.Context, assetName: String = "hosters.json") {
+        try {
+            val text = androidContext.assets.open(assetName).bufferedReader().use { it.readText() }
+            primeFromString(text)
+        } catch (_: Throwable) {
+            // ignore missing asset
+        }
+    }
 }

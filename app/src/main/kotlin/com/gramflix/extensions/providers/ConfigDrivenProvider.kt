@@ -26,6 +26,7 @@ import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.gramflix.extensions.config.RemoteConfig
 import com.gramflix.extensions.config.RulesConfig
 import com.gramflix.extensions.config.HomeConfig
+import com.gramflix.extensions.config.HostersConfig
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.nodes.Document
@@ -89,6 +90,12 @@ class ConfigDrivenProvider : MainAPI() {
         val displayName: String,
         val baseUrl: String,
         val rule: Rule?
+    )
+
+    private data class HosterPattern(
+        val slug: String,
+        val displayName: String,
+        val regexes: List<Regex>
     )
 
     private data class SearchItem(
@@ -682,6 +689,66 @@ class ConfigDrivenProvider : MainAPI() {
 
     private fun normalizeHost(url: String): String? {
         return runCatching { URI(url).host?.lowercase(Locale.ROOT)?.removePrefix("www.") }.getOrNull()
+    }
+
+    private fun buildHosterPatterns(): List<HosterPattern> {
+        val hosters = HostersConfig.hostersObject() ?: return emptyList()
+        val results = mutableListOf<HosterPattern>()
+        val iterator = hosters.keys()
+        while (iterator.hasNext()) {
+            val slug = iterator.next()
+            val entry = hosters.optJSONObject(slug) ?: continue
+            val displayName = entry.optString("name").takeIf { it.isNotBlank() } ?: slug
+            val raw = entry.optString("url").takeIf { it.isNotBlank() } ?: continue
+            val regexes = raw.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .mapNotNull { compileHosterPattern(it) }
+            if (regexes.isNotEmpty()) {
+                results += HosterPattern(slug, displayName, regexes)
+            }
+        }
+        return results
+    }
+
+    private fun compileHosterPattern(pattern: String): Regex? {
+        var token = pattern.trim()
+        if (token.isEmpty()) return null
+        token = token
+            .removePrefix("http://")
+            .removePrefix("https://")
+            .removePrefix("//")
+        token = token.substringBefore("/")
+        if (token.isBlank()) return null
+        val normalized = token.lowercase(Locale.ROOT)
+        val escaped = Regex.escape(normalized).replace("\\*".toRegex(), ".*")
+        return escaped.takeIf { it.isNotBlank() }?.let { Regex("^$it$") }
+    }
+
+    private fun detectHoster(url: String?, hosterPatterns: List<HosterPattern>): HosterPattern? {
+        if (url.isNullOrBlank()) return null
+        val host = normalizeHost(url) ?: return null
+        val lowered = host.lowercase(Locale.ROOT)
+        return hosterPatterns.firstOrNull { entry ->
+            entry.regexes.any { regex -> regex.matches(lowered) }
+        }
+    }
+
+    private fun wrapCallbackWithHosters(
+        hosterPatterns: List<HosterPattern>,
+        original: (ExtractorLink) -> Unit
+    ): (ExtractorLink) -> Unit {
+        if (hosterPatterns.isEmpty()) return original
+        return { link ->
+            val detected = detectHoster(link.url, hosterPatterns)
+                ?: detectHoster(link.referer, hosterPatterns)
+            if (detected != null) {
+                val label = detected.displayName
+                original(link.copy(source = label, name = label))
+            } else {
+                original(link)
+            }
+        }
     }
 
     private fun findMetaBySlug(metas: List<ProviderMeta>, slug: String): ProviderMeta? {
@@ -1734,11 +1801,12 @@ class ConfigDrivenProvider : MainAPI() {
             val dedupeKey = "${meta.slug}::$normalizedResolved"
             if (!dedupe.add(dedupeKey)) continue
             val tvType = determineTvType(meta, resolved, anchor)
+            val poster = extractPoster(anchor, pageBase)
             val item = createSearchItem(
                 meta = meta,
                 title = title,
                 url = resolved,
-                poster = null,
+                poster = poster,
                 includeProvider = includeProvider,
                 query = query,
                 tvType = tvType
@@ -1798,6 +1866,53 @@ class ConfigDrivenProvider : MainAPI() {
         return primary.take(60)
     }
 
+    private suspend fun appendHomeListsForMeta(
+        meta: ProviderMeta,
+        page: Int,
+        requestedSlug: String?,
+        lists: MutableList<HomePageList>
+    ): Boolean {
+        val rule = meta.rule
+        return try {
+            val dedupe = hashSetOf<String>()
+            var handled = false
+            if (isNebryx(meta) && (page == 1 || requestedSlug != null)) {
+                val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
+                if (nebryxLists.isNotEmpty()) {
+                    lists.addAll(nebryxLists)
+                    handled = true
+                }
+            }
+            if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
+                if (apiSections.isNotEmpty()) {
+                    lists.addAll(apiSections)
+                    handled = true
+                }
+            }
+            if (handled) return true
+            val effectiveRule = rule ?: return false
+            val response = fetchHtml(meta.baseUrl, referer = null)
+            val doc = response.document
+            val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
+            val responses = items.map { it.response }
+            if (responses.isNotEmpty()) {
+                lists += HomePageList(meta.displayName, responses)
+                return true
+            }
+            if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                val fallbackSections = extractOneJourHome(meta, doc, dedupe)
+                if (fallbackSections.isNotEmpty()) {
+                    lists.addAll(fallbackSections)
+                    return true
+                }
+            }
+            false
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         ensureRemoteConfigs()
         val metas = gatherProviders()
@@ -1812,49 +1927,26 @@ class ConfigDrivenProvider : MainAPI() {
 
         val pageSize = 5
         val lists = mutableListOf<HomePageList>()
+        var hasNextProviders = false
         if (filteredMetas.isNotEmpty()) {
-            val startIndex = max(0, (page - 1) * pageSize)
-            val slice = if (requestedSlug == null) {
-                if (startIndex >= filteredMetas.size) return newHomePageResponse(emptyList(), hasNext = false)
-                filteredMetas.drop(startIndex).take(pageSize)
+            if (requestedSlug == null) {
+                val startIndex = max(0, (page - 1) * pageSize)
+                if (startIndex < filteredMetas.size) {
+                    var index = startIndex
+                    var successes = 0
+                    while (index < filteredMetas.size && successes < pageSize) {
+                        val meta = filteredMetas[index]
+                        index++
+                        val added = appendHomeListsForMeta(meta, page, requestedSlug, lists)
+                        if (added) {
+                            successes++
+                        }
+                    }
+                    hasNextProviders = index < filteredMetas.size
+                }
             } else {
-                filteredMetas
-            }
-            for (meta in slice) {
-                val rule = meta.rule
-                try {
-                    val dedupe = hashSetOf<String>()
-                    var handled = false
-                    if (isNebryx(meta) && (page == 1 || requestedSlug != null)) {
-                        val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
-                        if (nebryxLists.isNotEmpty()) {
-                            lists.addAll(nebryxLists)
-                            handled = true
-                        }
-                    }
-                    if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
-                        val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
-                        if (apiSections.isNotEmpty()) {
-                            lists.addAll(apiSections)
-                            handled = true
-                        }
-                    }
-                    if (handled) continue
-                    val effectiveRule = rule ?: continue
-                    val response = fetchHtml(meta.baseUrl, referer = null)
-                    val doc = response.document
-                    val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
-                    val responses = items.map { it.response }
-                    if (responses.isNotEmpty()) {
-                        lists += HomePageList(meta.displayName, responses)
-                    } else if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
-                        val fallbackSections = extractOneJourHome(meta, doc, dedupe)
-                        if (fallbackSections.isNotEmpty()) {
-                            lists.addAll(fallbackSections)
-                        }
-                    }
-                } catch (_: Throwable) {
-                    // Ignore providers that fail
+                filteredMetas.forEach { meta ->
+                    appendHomeListsForMeta(meta, page, requestedSlug, lists)
                 }
             }
         }
@@ -1882,12 +1974,7 @@ class ConfigDrivenProvider : MainAPI() {
             lists.addAll(fallbackLists)
         }
 
-        val hasNext = if (requestedSlug == null) {
-            val total = filteredMetas.size
-            val startIndex = max(0, (page - 1) * pageSize)
-            val nextIndex = startIndex + pageSize
-            nextIndex < total
-        } else false
+        val hasNext = requestedSlug == null && hasNextProviders
 
         return newHomePageResponse(lists, hasNext)
     }
@@ -2067,18 +2154,21 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         return try {
+            HostersConfig.ensureLoaded()
+            val hosterPatterns = buildHosterPatterns()
+            val hosterAwareCallback = wrapCallbackWithHosters(hosterPatterns, callback)
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
             if (!imdbId.isNullOrBlank()) {
                 val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdbId"
                 return runCatching {
-                    loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, callback)
+                    loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, hosterAwareCallback)
                     true
                 }.getOrElse { false }
             }
             if (pageUrl.startsWith(NEBRYX_SCHEME, ignoreCase = true) || isNebryxSlug(loadData.slug)) {
-                return loadNebryxLinks(loadData, subtitleCallback, callback)
+                return loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
@@ -2131,14 +2221,14 @@ class ConfigDrivenProvider : MainAPI() {
             prioritizedCandidates.take(25).forEach { link ->
                 if (isUnsBioLink(link)) {
                     val handled = runCatching {
-                        handleUnsBioEmbed(link, pageUrl, subtitleCallback, callback)
+                        handleUnsBioEmbed(link, pageUrl, subtitleCallback, hosterAwareCallback)
                     }.getOrDefault(false)
                     if (handled) {
                         success = true
                     }
                 } else {
                     try {
-                        loadExtractor(link, pageUrl, subtitleCallback, callback)
+                        loadExtractor(link, pageUrl, subtitleCallback, hosterAwareCallback)
                         success = true
                     } catch (_: Throwable) {
                     }
