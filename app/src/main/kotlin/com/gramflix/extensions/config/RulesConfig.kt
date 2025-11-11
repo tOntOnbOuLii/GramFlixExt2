@@ -1,6 +1,7 @@
 package com.gramflix.extensions.config
 
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * Remote scraping rules per provider.
@@ -68,8 +69,17 @@ object RulesConfig {
     }
 
     fun getRules(slug: String): JSONObject? {
-        val json = cached ?: return null
-        return json.optJSONObject("rules")?.optJSONObject(slug)
+        val rules = cached?.optJSONObject("rules") ?: return null
+        rules.optJSONObject(slug)?.let { return it }
+        val normalized = slug.lowercase(Locale.ROOT)
+        val keys = rules.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            if (key.equals(slug, ignoreCase = true) || key.lowercase(Locale.ROOT) == normalized) {
+                return rules.optJSONObject(key)
+            }
+        }
+        return null
     }
 
     fun rulesObject(): JSONObject? = cached?.optJSONObject("rules")
