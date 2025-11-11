@@ -19,7 +19,7 @@
         },
         "cinepulse": {
             "name": "Cinepulse",
-            "baseUrl": "https://cinepulse.cc"
+            "baseUrl": "https://cinepulse.lol/"
         },
         "cmd-stream": {
             "name": "CMD-Stream",
@@ -35,19 +35,19 @@
         },
         "directfr": {
             "name": "DirectFR",
-            "baseUrl": "https://directfr.lat"
+            "baseUrl": "https://directfr.sbs"
         },
         "fanstream": {
             "name": "Fanstream",
-            "baseUrl": "https://fanstream.fun"
+            "baseUrl": "https://fanstream.cfd"
         },
         "filmoflix": {
             "name": "FilmoFlix",
-            "baseUrl": "https://filmoflix.bike"
+            "baseUrl": "https://filmoflix.party"
         },
         "flemmix": {
             "name": "Flemmix",
-            "baseUrl": "https://flemmix.town"
+            "baseUrl": "https://flemmix.cam/"
         },
         "frembed": {
             "name": "Frembed",
@@ -63,7 +63,7 @@
         },
         "gogoflix": {
             "name": "GogoFliX",
-            "baseUrl": "https://gogoflix.website"
+            "baseUrl": "https://gogoflix.rest"
         },
         "hdss": {
             "name": "HDss",
@@ -87,7 +87,7 @@
         },
         "papadustream": {
             "name": "PapaduStream",
-            "baseUrl": "https://papadustream.doctor"
+            "baseUrl": "https://papadustream.horse"
         },
         "purstream": {
             "name": "Purstream",
@@ -99,11 +99,11 @@
         },
         "sadisflix": {
             "name": "Sadisflix",
-            "baseUrl": "https://sadisflix-officiel.com"
+            "baseUrl": "http://onregardequoi.site"
         },
         "senpaistream": {
             "name": "Senpai-Stream",
-            "baseUrl": "https://senpai.wiki"
+            "baseUrl": "https://senpai-stream.fun"
         },
         "stream4free": {
             "name": "Stream 4 Free",
@@ -119,11 +119,11 @@
         },
         "wowfilms": {
             "name": "WoW-Films",
-            "baseUrl": "https://wowfilms1025.site"
+            "baseUrl": "https://wowfilms1125.site"
         },
         "xalaflix": {
             "name": "XalaFlix",
-            "baseUrl": "https://xalaflix.eu.com"
+            "baseUrl": "https://xalaflix.zone"
         },
         "yopflix": {
             "name": "YopFlix",
