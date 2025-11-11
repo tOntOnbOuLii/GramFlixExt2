@@ -83,3 +83,10 @@ GramFlix est une extension pour CloudStream qui agrège des liens publics. Nous 
 <p align="center">
   <strong>GramFlix - Le streaming français qui défouraille ! 🔥</strong>
 </p>
+
+---
+
+## Assets
+
+Le pack fournit aussi les fichiers logo.jpg et avicon.png a la racine du depot pour integrer rapidement l'identite visuelle GramFlix sur vos hebergements.
+
