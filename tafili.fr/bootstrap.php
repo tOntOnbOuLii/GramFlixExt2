@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-define('BASE_PATH', __DIR__);
-define('DATA_PATH', BASE_PATH . DIRECTORY_SEPARATOR . 'data');
+const BASE_PATH = __DIR__;
+const DATA_PATH = BASE_PATH . DIRECTORY_SEPARATOR . 'data';
 
 require_once BASE_PATH . '/config.php';
 if (file_exists(BASE_PATH . '/config.local.php')) {
     require_once BASE_PATH . '/config.local.php';
 }
 
-session_name('tafili_panel');
+session_name('gramflix_panel');
 
 if (defined('SESSION_SECURE')) {
     session_set_cookie_params([
@@ -24,64 +24,62 @@ if (defined('SESSION_SECURE')) {
 session_start();
 
 initialize_user_store();
+initialize_history_store();
 
-/**
- * Retourne le chemin absolu vers un fichier JSON stocke dans /data.
- */
 function data_path(string $filename): string
 {
     return DATA_PATH . DIRECTORY_SEPARATOR . $filename;
 }
 
-/**
- * Lit un fichier JSON et renvoie un tableau associatif.
- *
- * @return array<mixed>
- */
+function panel_log(string $context, string $message): void
+{
+    $line = sprintf('[%s] %s: %s%s', date('c'), strtoupper($context), $message, PHP_EOL);
+    @file_put_contents(data_path('panel.log'), $line, FILE_APPEND);
+}
+
+function panel_log_exception(string $context, Throwable $throwable): void
+{
+    panel_log($context, $throwable->getMessage() . ' in ' . $throwable->getFile() . ':' . $throwable->getLine());
+}
+
+function ensure_data_directory(): void
+{
+    if (!is_dir(DATA_PATH)) {
+        if (!mkdir(DATA_PATH, 0775, true) && !is_dir(DATA_PATH)) {
+            throw new RuntimeException('Impossible de creer le dossier data.');
+        }
+    }
+}
+
 function read_json(string $filename, array $defaults = []): array
 {
+    ensure_data_directory();
     $path = data_path($filename);
     if (!is_file($path)) {
         return $defaults;
     }
-    $content = file_get_contents($path);
-    if ($content === false || $content === '') {
+    $contents = file_get_contents($path);
+    if ($contents === false || trim($contents) === '') {
         return $defaults;
     }
-    $decoded = json_decode($content, true);
-    if (!is_array($decoded)) {
-        return $defaults;
-    }
-    return $decoded;
+    $decoded = json_decode($contents, true);
+    return is_array($decoded) ? $decoded : $defaults;
 }
 
-/**
- * Ecrit un tableau associatif dans un fichier JSON (avec fichier temporaire).
- *
- * @param array<mixed> $payload
- */
 function write_json(string $filename, array $payload): void
 {
+    ensure_data_directory();
     $path = data_path($filename);
-    $dir = dirname($path);
-    if (!is_dir($dir)) {
-        if (!mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException("Impossible de creer le dossier data ($dir).");
-        }
-    }
     $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
-    $tmpPath = $path . '.tmp';
-    if (file_put_contents($tmpPath, $json, LOCK_EX) === false) {
-        throw new RuntimeException("Ecriture impossible dans $tmpPath");
+    $tmp = $path . '.tmp';
+    if (file_put_contents($tmp, $json, LOCK_EX) === false) {
+        throw new RuntimeException('Ecriture impossible dans ' . $tmp);
     }
-    if (!rename($tmpPath, $path)) {
-        throw new RuntimeException("Impossible de remplacer $path");
+    if (!rename($tmp, $path)) {
+        throw new RuntimeException('Impossible de remplacer ' . $path);
     }
 }
 
-/**
- * @return array<string,array<string,mixed>>
- */
 function load_users(): array
 {
     $raw = read_json('users.json', ['version' => 1, 'users' => []]);
@@ -97,9 +95,6 @@ function load_users(): array
     return $users;
 }
 
-/**
- * @param array<string,array<string,mixed>> $users
- */
 function save_users(array $users): void
 {
     $payload = [
@@ -115,10 +110,9 @@ function initialize_user_store(): void
     if (!empty($users)) {
         return;
     }
-
-    $username = defined('DEFAULT_ADMIN_USERNAME') ? strtolower((string) DEFAULT_ADMIN_USERNAME) : 'admin';
-    $display = defined('DEFAULT_ADMIN_DISPLAY') ? (string) DEFAULT_ADMIN_DISPLAY : ucfirst($username);
-    $password = defined('DEFAULT_ADMIN_PASSWORD') ? (string) DEFAULT_ADMIN_PASSWORD : bin2hex(random_bytes(4));
+    $username = strtolower((string) (defined('DEFAULT_ADMIN_USERNAME') ? DEFAULT_ADMIN_USERNAME : 'admin'));
+    $display = (string) (defined('DEFAULT_ADMIN_DISPLAY') ? DEFAULT_ADMIN_DISPLAY : ucfirst($username));
+    $password = (string) (defined('DEFAULT_ADMIN_PASSWORD') ? DEFAULT_ADMIN_PASSWORD : bin2hex(random_bytes(8)));
     $hash = password_hash($password, PASSWORD_DEFAULT);
     $now = date('c');
 
@@ -132,44 +126,66 @@ function initialize_user_store(): void
     ];
 
     save_users($users);
+    panel_log('users', 'Compte administrateur initialise pour ' . $username);
+}
+
+function history_defaults(): array
+{
+    return [
+        'version' => 1,
+        'entries' => [],
+    ];
+}
+
+function initialize_history_store(): void
+{
+    $path = data_path('history.json');
+    if (!is_file($path)) {
+        write_json('history.json', history_defaults());
+    }
+}
+
+function append_history_entry(string $action, string $summary, array $details = []): void
+{
+    $data = read_json('history.json', history_defaults());
+    $entries = $data['entries'] ?? [];
+    $user = current_user_record();
+    $entry = [
+        'id' => bin2hex(random_bytes(8)),
+        'action' => $action,
+        'summary' => $summary,
+        'details' => $details,
+        'user' => $user ? [
+            'username' => $user['username'],
+            'displayName' => $user['displayName'] ?? ucfirst($user['username']),
+        ] : null,
+        'timestamp' => date('c'),
+    ];
+    array_unshift($entries, $entry);
+    $max = defined('HISTORY_MAX_ENTRIES') ? (int) HISTORY_MAX_ENTRIES : 200;
+    if ($max > 0) {
+        $entries = array_slice($entries, 0, $max);
+    }
+    write_json('history.json', [
+        'version' => 1,
+        'entries' => $entries,
+    ]);
+}
+
+function history_entries(int $limit = 20): array
+{
+    $data = read_json('history.json', history_defaults());
+    $entries = $data['entries'] ?? [];
+    if ($limit > 0) {
+        return array_slice($entries, 0, $limit);
+    }
+    return $entries;
 }
 
 function current_user(): ?string
 {
-    return $_SESSION['user'] ?? null;
-}
-
-/**
- * @param array<string,array<string,mixed>> $users
- */
-function sanitize_users(array $users): array
-{
-    $export = [];
-    foreach ($users as $entry) {
-        $export[] = [
-            'username' => $entry['username'],
-            'displayName' => $entry['displayName'] ?? ucfirst($entry['username']),
-            'role' => $entry['role'] ?? 'editor',
-            'createdAt' => $entry['createdAt'] ?? null,
-            'updatedAt' => $entry['updatedAt'] ?? null,
-        ];
-    }
-    usort($export, fn($a, $b) => strcmp($a['username'], $b['username']));
-    return $export;
-}
-
-/**
- * @param array<string,array<string,mixed>> $users
- */
-function count_admins(array $users): int
-{
-    $count = 0;
-    foreach ($users as $entry) {
-        if (($entry['role'] ?? '') === 'admin') {
-            $count++;
-        }
-    }
-    return $count;
+    $user = $_SESSION['user'] ?? null;
+    return is_string($user) ? strtolower($user) : null;
 }
 
 function current_user_record(): ?array
@@ -184,37 +200,26 @@ function current_user_record(): ?array
 
 function is_authenticated(): bool
 {
-    return current_user() !== null;
+    return current_user_record() !== null;
 }
 
 function is_admin(): bool
 {
-    if (!is_authenticated()) {
-        return false;
-    }
-    if (isset($_SESSION['role'])) {
-        return $_SESSION['role'] === 'admin';
-    }
     $record = current_user_record();
-    return ($record['role'] ?? '') === 'admin';
+    return $record !== null && ($record['role'] ?? 'editor') === 'admin';
 }
 
 function login(string $username, string $password): bool
 {
-    $username = strtolower(trim($username));
     $users = load_users();
-    $user = $users[$username] ?? null;
-    if ($user === null) {
-        return false;
+    $key = strtolower(trim($username));
+    $user = $users[$key] ?? null;
+    if ($user && password_verify($password, (string) ($user['passwordHash'] ?? ''))) {
+        $_SESSION['user'] = $key;
+        $_SESSION['role'] = $user['role'] ?? 'editor';
+        return true;
     }
-    $hash = (string) ($user['passwordHash'] ?? '');
-    if (!password_verify($password, $hash)) {
-        return false;
-    }
-    $_SESSION['user'] = $username;
-    $_SESSION['role'] = $user['role'] ?? 'editor';
-    ensure_csrf_token();
-    return true;
+    return false;
 }
 
 function logout(): void
@@ -225,28 +230,6 @@ function logout(): void
         setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'] ?? '', $params['secure'] ?? false, $params['httponly'] ?? false);
     }
     session_destroy();
-}
-
-function ensure_csrf_token(): string
-{
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-function csrf_token(): string
-{
-    return ensure_csrf_token();
-}
-
-function verify_csrf_token(?string $token): bool
-{
-    $expected = $_SESSION['csrf_token'] ?? null;
-    if (!is_string($expected) || $expected === '') {
-        return false;
-    }
-    return is_string($token) && hash_equals($expected, $token);
 }
 
 function require_auth(): void
@@ -269,9 +252,25 @@ function require_admin(): void
     }
 }
 
-/**
- * @param array<string,mixed> $payload
- */
+function ensure_csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
+    }
+    return (string) $_SESSION['csrf_token'];
+}
+
+function csrf_token(): string
+{
+    return ensure_csrf_token();
+}
+
+function verify_csrf_token(?string $token): bool
+{
+    $expected = $_SESSION['csrf_token'] ?? null;
+    return is_string($token) && is_string($expected) && hash_equals($expected, $token);
+}
+
 function json_response(array $payload, int $status = 200): void
 {
     http_response_code($status);
@@ -282,114 +281,74 @@ function json_response(array $payload, int $status = 200): void
 
 function github_enabled(): bool
 {
-    return defined('GITHUB_SYNC_ENABLED')
-        && GITHUB_SYNC_ENABLED
-        && defined('GITHUB_TOKEN')
-        && is_string(GITHUB_TOKEN)
-        && trim((string) GITHUB_TOKEN) !== '';
+    return defined('GITHUB_SYNC_ENABLED') && GITHUB_SYNC_ENABLED && defined('GITHUB_TOKEN') && trim((string) GITHUB_TOKEN) !== '';
 }
 
-/**
- * @return array{owner:string,repo:string,token:string,branch:string}
- */
 function github_repo_info(): array
 {
-    if (!github_enabled()) {
-        throw new RuntimeException('GitHub sync is not enabled.');
-    }
-
-    $owner = defined('GITHUB_OWNER') ? trim((string) GITHUB_OWNER) : '';
-    $repo = defined('GITHUB_REPO') ? trim((string) GITHUB_REPO) : '';
-    $token = trim((string) GITHUB_TOKEN);
-    $branch = defined('GITHUB_BRANCH') ? trim((string) GITHUB_BRANCH) : 'main';
-
-    if ($owner === '' || $repo === '' || $token === '') {
-        throw new RuntimeException('GitHub configuration is incomplete.');
-    }
-
     return [
-        'owner' => $owner,
-        'repo' => $repo,
-        'token' => $token,
-        'branch' => $branch,
+        'owner' => trim((string) (defined('GITHUB_OWNER') ? GITHUB_OWNER : '')),
+        'repo' => trim((string) (defined('GITHUB_REPO') ? GITHUB_REPO : '')),
+        'token' => trim((string) (defined('GITHUB_TOKEN') ? GITHUB_TOKEN : '')),
+        'branch' => trim((string) (defined('GITHUB_BRANCH') ? GITHUB_BRANCH : 'main')),
     ];
 }
 
-function github_escape_path(string $path): string
-{
-    $segments = array_filter(array_map('trim', explode('/', ltrim($path, '/'))), fn($segment) => $segment !== '');
-    return implode('/', array_map('rawurlencode', $segments));
-}
-
-function github_api_request(array $info, string $method, string $endpoint, ?array $payload = null, bool $allow404 = false): ?array
+function github_api_request(array $info, string $method, string $endpoint, ?array $payload = null): array
 {
     if (!function_exists('curl_init')) {
-        throw new RuntimeException('cURL extension required for GitHub sync.');
+        throw new RuntimeException('Extension cURL requise pour la synchronisation GitHub.');
     }
-
     $url = 'https://api.github.com' . $endpoint;
     $ch = curl_init($url);
     $headers = [
         'Accept: application/vnd.github+json',
         'Authorization: Bearer ' . $info['token'],
-        'User-Agent: GramFlixPanel/1.0',
+        'User-Agent: GramFlix-Webpanel/2.0',
     ];
-    if ($payload !== null) {
-        $headers[] = 'Content-Type: application/json';
-    }
-
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_HTTPHEADER => $headers,
     ]);
-
     if ($payload !== null) {
-        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     }
-
     $response = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     if ($response === false) {
         $error = curl_error($ch);
         curl_close($ch);
-        throw new RuntimeException('GitHub API request failed: ' . $error);
+        throw new RuntimeException('Requete GitHub echouee: ' . $error);
     }
-
-    $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     curl_close($ch);
-
-    if ($status === 404 && $allow404) {
-        return null;
-    }
-
     if ($status >= 400) {
-        throw new RuntimeException("GitHub API error ($status): $response");
+        throw new RuntimeException('GitHub a renvoye ' . $status . ' : ' . $response);
     }
-
-    if ($response === '' || $response === null) {
-        return [];
-    }
-
     $decoded = json_decode($response, true);
     return is_array($decoded) ? $decoded : [];
 }
 
-function github_get_file(array $info, string $path, string $branch): ?array
+function github_get_file(array $info, string $path): ?array
 {
-    $escaped = github_escape_path($path);
-    $endpoint = "/repos/{$info['owner']}/{$info['repo']}/contents/{$escaped}?ref=" . rawurlencode($branch);
-    return github_api_request($info, 'GET', $endpoint, null, true);
+    $endpoint = sprintf('/repos/%s/%s/contents/%s?ref=%s', rawurlencode($info['owner']), rawurlencode($info['repo']), ltrim($path, '/'), rawurlencode($info['branch']));
+    try {
+        return github_api_request($info, 'GET', $endpoint);
+    } catch (RuntimeException $e) {
+        if (strpos($e->getMessage(), '404') !== false) {
+            return null;
+        }
+        throw $e;
+    }
 }
 
-function github_put_file(array $info, string $path, string $content, string $message, string $branch, ?string $sha): array
+function github_put_file(array $info, string $path, string $content, ?string $sha): array
 {
-    $escaped = github_escape_path($path);
-    $endpoint = "/repos/{$info['owner']}/{$info['repo']}/contents/{$escaped}";
+    $endpoint = sprintf('/repos/%s/%s/contents/%s', rawurlencode($info['owner']), rawurlencode($info['repo']), ltrim($path, '/'));
     $payload = [
-        'message' => $message,
+        'message' => 'GramFlix panel sync ' . date('Y-m-d H:i:s'),
         'content' => base64_encode($content),
-        'branch' => $branch,
+        'branch' => $info['branch'],
     ];
     if ($sha !== null) {
         $payload['sha'] = $sha;
@@ -397,32 +356,107 @@ function github_put_file(array $info, string $path, string $content, string $mes
     return github_api_request($info, 'PUT', $endpoint, $payload);
 }
 
-/**
- * @param array<int,array{path:string,content:string}> $files
- * @return array<int,array{path:string,status:string}>
- */
-function github_sync_files(array $files, string $message, string $branch): array
+function github_sync_files(array $files): array
 {
+    if (!github_enabled()) {
+        throw new RuntimeException('La synchronisation GitHub est desactivee.');
+    }
     $info = github_repo_info();
     $results = [];
     foreach ($files as $file) {
-        $path = $file['path'];
-        $content = $file['content'];
-        $existing = github_get_file($info, $path, $branch);
+        $existing = github_get_file($info, $file['path']);
         $sha = $existing['sha'] ?? null;
-        $remoteContent = null;
-        if (is_array($existing) && isset($existing['content'])) {
-            $remoteContent = base64_decode(str_replace(["\n", "\r"], '', (string) $existing['content']), true);
-        }
-
-        if ($remoteContent !== null && rtrim($remoteContent) === rtrim($content)) {
-            $results[] = ['path' => $path, 'status' => 'unchanged'];
-            continue;
-        }
-
-        github_put_file($info, $path, $content, $message, $branch, $sha);
-        $results[] = ['path' => $path, 'status' => 'updated'];
+        github_put_file($info, $file['path'], $file['content'], $sha);
+        $results[] = ['path' => $file['path'], 'status' => $sha ? 'updated' : 'created'];
     }
-
     return $results;
+}
+
+function data_file_status(string $filename): array
+{
+    $path = data_path($filename);
+    return [
+        'path' => $path,
+        'exists' => file_exists($path),
+        'readable' => is_readable($path),
+        'writable' => file_exists($path) ? is_writable($path) : is_writable(dirname($path)),
+    ];
+}
+
+function data_directory_status(): array
+{
+    return [
+        'path' => DATA_PATH,
+        'exists' => is_dir(DATA_PATH),
+        'writable' => is_dir(DATA_PATH) ? is_writable(DATA_PATH) : false,
+    ];
+}
+
+function build_panel_state(): array
+{
+    $providers = read_json('providers.json', ['version' => 1, 'providers' => []]);
+    $hosters = read_json('hosters.json', ['version' => 1, 'hosters' => []]);
+    $rules = read_json('rules.json', ['version' => 1, 'rules' => []]);
+    $diagnostics = [
+        'providers' => data_file_status('providers.json'),
+        'hosters' => data_file_status('hosters.json'),
+        'rules' => data_file_status('rules.json'),
+        'users' => data_file_status('users.json'),
+        'history' => data_file_status('history.json'),
+        'dataDir' => data_directory_status(),
+    ];
+
+    return [
+        'providers' => $providers,
+        'hosters' => $hosters,
+        'rules' => $rules,
+        'history' => [
+            'entries' => history_entries(),
+        ],
+        'diagnostics' => $diagnostics,
+        'isAdmin' => is_admin(),
+        'currentUser' => current_user_record(),
+        'max' => defined('MAX_PROVIDERS') ? (int) MAX_PROVIDERS : 32,
+        'csrf' => csrf_token(),
+        'github' => [
+            'enabled' => github_enabled(),
+            'owner' => defined('GITHUB_OWNER') ? (string) GITHUB_OWNER : null,
+            'repo' => defined('GITHUB_REPO') ? (string) GITHUB_REPO : null,
+            'branch' => defined('GITHUB_BRANCH') ? (string) GITHUB_BRANCH : 'main',
+        ],
+    ];
+}
+
+function normalize_slug(string $value): string
+{
+    $value = strtolower(trim($value));
+    $value = preg_replace('/[^a-z0-9._-]/', '-', $value);
+    return (string) preg_replace('/-+/', '-', $value);
+}
+
+function normalize_username(?string $username): string
+{
+    if ($username === null) {
+        return '';
+    }
+    $username = strtolower(trim($username));
+    return preg_replace('/[^a-z0-9._-]/', '', $username);
+}
+
+function sanitize_users(array $users): array
+{
+    $export = [];
+    foreach ($users as $user) {
+        $export[] = [
+            'username' => $user['username'],
+            'displayName' => $user['displayName'] ?? ucfirst($user['username']),
+            'role' => $user['role'] ?? 'editor',
+            'createdAt' => $user['createdAt'] ?? null,
+            'updatedAt' => $user['updatedAt'] ?? null,
+        ];
+    }
+    usort($export, static function ($a, $b) {
+        return strcmp($a['username'], $b['username']);
+    });
+    return $export;
 }

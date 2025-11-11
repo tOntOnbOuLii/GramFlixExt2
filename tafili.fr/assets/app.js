@@ -1,648 +1,55 @@
 const state = window.__PANEL_STATE__ || {};
+const navToggle = document.querySelector('[data-nav-toggle]');
+const panelNav = document.getElementById('panel-nav');
 
-const providersApp = document.getElementById('providers-app');
-const hostersApp = document.getElementById('hosters-app');
-const usersApp = document.getElementById('users-app');
-const accountApp = document.getElementById('account-app');
-const syncApp = document.getElementById('sync-app');
-const globalAlerts = document.getElementById('global-alerts');
-
-const providers = mapProviders(state.providers?.providers ?? {});
-const hosters = mapHosters(state.hosters?.hosters ?? {});
-const users = usersApp ? mapUsers(state.users ?? []) : [];
-let syncPending = false;
-const providerStatusMap = new Map();
-let providerHealthLoaded = false;
-
-renderProviders();
-renderHosters();
-if (usersApp) {
-    renderUsers();
-}
-if (accountApp) {
-    renderAccount();
-}
-if (syncApp && state.github?.enabled) {
-    renderSync();
-}
-
-loadProviderHealth();
-
-function mapProviders(source) {
-    return Object.entries(source).map(([slug, data]) => ({
-        slug,
-        name: data.name ?? '',
-        baseUrl: data.baseUrl ?? '',
-    }));
-}
-
-function mapHosters(source) {
-    return Object.entries(source).map(([key, data]) => ({
-        key,
-        name: data.name ?? '',
-        url: data.url ?? '',
-    }));
-}
-
-function mapUsers(source) {
-    return source.map(entry => ({
-        username: entry.username ?? '',
-        displayName: entry.displayName ?? '',
-        role: entry.role ?? 'editor',
-        createdAt: entry.createdAt ?? null,
-        updatedAt: entry.updatedAt ?? null,
-    }));
-}
-
-function renderProviders(message) {
-    if (!providersApp) return;
-    const rows = providers.map((item, index) => providerRowTemplate(item, index)).join('');
-    const canAdd = providers.length < state.max;
-
-    providersApp.innerHTML = `
-        ${renderMessage(message)}
-        <div class="table-wrapper">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Slug</th>
-                    <th>Nom affiche</th>
-                    <th>Base URL &amp; Statut</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                    ${rows || `<tr><td colspan="5" class="muted">Aucun provider pour le moment.</td></tr>`}
-                </tbody>
-            </table>
-        </div>
-        <div class="actions">
-            <button class="btn btn-ghost" id="add-provider" ${canAdd ? '' : 'disabled'}>+ Ajouter</button>
-            <span class="muted">Limite : ${providers.length}/${state.max}</span>
-            <span class="grow"></span>
-            <button class="btn btn-primary" id="save-providers">Enregistrer</button>
-        </div>
-    `;
-
-    providersApp.querySelector('#add-provider')?.addEventListener('click', () => {
-        if (providers.length >= state.max) return;
-        providers.push({ slug: '', name: '', baseUrl: '' });
-        renderProviders();
+if (navToggle && panelNav) {
+    navToggle.addEventListener('click', () => {
+        panelNav.classList.toggle('is-open');
+        navToggle.setAttribute('aria-expanded', panelNav.classList.contains('is-open'));
     });
-
-    providersApp.querySelector('#save-providers')?.addEventListener('click', saveProviders);
-
-    providersApp.querySelectorAll('[data-provider-row]').forEach(row => {
-        const index = Number(row.dataset.index);
-        row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', event => {
-                const target = event.target;
-                if (!(target instanceof HTMLInputElement)) return;
-                providers[index][target.name] = target.value;
-            });
-        });
-        row.querySelector('[data-remove]')?.addEventListener('click', () => {
-            providers.splice(index, 1);
-            renderProviders();
+    panelNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            panelNav.classList.remove('is-open');
+            navToggle.setAttribute('aria-expanded', 'false');
         });
     });
 }
+const providerTable = document.querySelector('[data-provider-table] tbody');
+const hosterTable = document.querySelector('[data-hoster-table] tbody');
+const historyApp = document.getElementById('history-app');
+const githubButton = document.querySelector('[data-github-sync]');
+const providersMessage = document.getElementById('providers-message');
+const hostersMessage = document.getElementById('hosters-message');
+const rulesTable = document.querySelector('[data-rules-table] tbody');
+const rulesMessage = document.getElementById('rules-message');
+const githubStatus = document.getElementById('github-status');
+const accountForm = document.querySelector('[data-change-password]');
+const accountMessage = document.getElementById('account-message');
+const usersMessage = document.getElementById('users-message');
+const userForm = document.querySelector('[data-user-form]');
+const userTable = document.querySelector('[data-user-table] tbody');
 
-function providerRowTemplate(item, index) {
-    return `
-        <tr data-provider-row data-index="${index}">
-            <td>${index + 1}</td>
-            <td><input type="text" name="slug" placeholder="ex: 1jour1film" value="${escapeHtml(item.slug)}" required></td>
-            <td><input type="text" name="name" placeholder="Nom lisible" value="${escapeHtml(item.name)}" required></td>
-            <td class="url-cell">
-                <input type="url" name="baseUrl" placeholder="https://exemple.com/" value="${escapeHtml(item.baseUrl)}" required>
-                ${renderStatusPill(item.slug)}
-            </td>
-            <td><button class="btn btn-ghost" type="button" data-remove>&times;</button></td>
-        </tr>
-    `;
-}
+renderHistory(state.history?.entries || []);
 
-async function saveProviders() {
-    const payload = {
-        action: 'save_providers',
-        csrf: state.csrf,
-        providers: providers.map(item => ({
-            slug: item.slug.trim(),
-            name: item.name.trim(),
-            baseUrl: item.baseUrl.trim(),
-        })),
-    };
-
-    try {
-        const response = await callApi(payload);
-        updateCsrf(response);
-        if (response.ok) {
-            renderProviders({ type: 'success', text: `Providers enregistres (${response.count}).` });
-            loadProviderHealth();
-        } else {
-            renderProviders({
-                type: 'error',
-                text: formatError('Impossible d\'enregistrer.', response),
-            });
-        }
-    } catch (error) {
-        renderProviders({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
-}
-
-function renderHosters(message) {
-    if (!hostersApp) return;
-    const rows = hosters.map((item, index) => hosterRowTemplate(item, index)).join('');
-
-    hostersApp.innerHTML = `
-        ${renderMessage(message)}
-        <div class="table-wrapper">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Identifiant</th>
-                    <th>Nom</th>
-                    <th>URL / Pattern</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                    ${rows || `<tr><td colspan="5" class="muted">Aucun hoster pour le moment.</td></tr>`}
-                </tbody>
-            </table>
-        </div>
-        <div class="actions">
-            <button class="btn btn-ghost" id="add-hoster">+ Ajouter</button>
-            <span class="grow"></span>
-            <button class="btn btn-primary" id="save-hosters">Enregistrer</button>
-        </div>
-    `;
-
-    hostersApp.querySelector('#add-hoster')?.addEventListener('click', () => {
-        hosters.push({ key: '', name: '', url: '' });
-        renderHosters();
-    });
-
-    hostersApp.querySelector('#save-hosters')?.addEventListener('click', saveHosters);
-
-    hostersApp.querySelectorAll('[data-hoster-row]').forEach(row => {
-        const index = Number(row.dataset.index);
-        row.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', event => {
-                const target = event.target;
-                if (!(target instanceof HTMLInputElement)) return;
-                hosters[index][target.name] = target.value;
-            });
-        });
-        row.querySelector('[data-remove]')?.addEventListener('click', () => {
-            hosters.splice(index, 1);
-            renderHosters();
-        });
-    });
-}
-
-function hosterRowTemplate(item, index) {
-    return `
-        <tr data-hoster-row data-index="${index}">
-            <td>${index + 1}</td>
-            <td><input type="text" name="key" placeholder="ex: uqload" value="${escapeHtml(item.key)}" required></td>
-            <td><input type="text" name="name" placeholder="Nom" value="${escapeHtml(item.name)}" required></td>
-            <td><input type="text" name="url" placeholder="https://uqload.*" value="${escapeHtml(item.url)}" required></td>
-            <td><button class="btn btn-ghost" type="button" data-remove>&times;</button></td>
-        </tr>
-    `;
-}
-
-async function saveHosters() {
-    const payload = {
-        action: 'save_hosters',
-        csrf: state.csrf,
-        hosters: hosters.map(item => ({
-            key: item.key.trim(),
-            name: item.name.trim(),
-            url: item.url.trim(),
-        })),
-    };
-
-    try {
-        const response = await callApi(payload);
-        updateCsrf(response);
-        if (response.ok) {
-            renderHosters({ type: 'success', text: `Hosters enregistres (${response.count}).` });
-        } else {
-            renderHosters({
-                type: 'error',
-                text: formatError('Impossible d\'enregistrer.', response),
-            });
-        }
-    } catch (error) {
-        renderHosters({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
-}
-
-function renderUsers(message) {
-    if (!usersApp) return;
-
-    const rows = users.map(userRowTemplate).join('');
-
-    usersApp.innerHTML = `
-        ${renderMessage(message)}
-        <div class="table-wrapper">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>Utilisateur</th>
-                    <th>Nom affiche</th>
-                    <th>Role</th>
-                    <th>Derniere maj</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                    ${rows || `<tr><td colspan="5" class="muted">Aucun utilisateur.</td></tr>`}
-                </tbody>
-            </table>
-        </div>
-        <form id="add-user-form" class="form-inline">
-            <input type="text" name="username" placeholder="identifiant" required>
-            <input type="text" name="displayName" placeholder="Nom affiche">
-            <input type="password" name="password" placeholder="Mot de passe (min. 8 caracteres)" required>
-            <select name="role">
-                <option value="editor">Editeur</option>
-                <option value="admin">Administrateur</option>
-            </select>
-            <button type="submit" class="btn btn-primary">Ajouter</button>
-        </form>
-        <p class="muted">Les mots de passe sont hashes automatiquement. Pensez a transmettre un mot de passe temporaire a l'utilisateur.</p>
-    `;
-
-    usersApp.querySelectorAll('[data-user-row]').forEach(row => {
-        const username = row.dataset.username;
-        const user = users.find(item => item.username === username);
-        if (!user) return;
-
-        row.querySelectorAll('input, select').forEach(input => {
-            input.addEventListener('input', event => {
-                const target = event.target;
-                if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLSelectElement)) return;
-                user[target.name] = target.value;
-            });
-        });
-
-        row.querySelector('[data-save]')?.addEventListener('click', () => updateUser(user));
-        row.querySelector('[data-reset]')?.addEventListener('click', () => resetPassword(user));
-        row.querySelector('[data-delete]')?.addEventListener('click', () => deleteUser(user));
-    });
-
-    usersApp.querySelector('#add-user-form')?.addEventListener('submit', async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        if (!(form instanceof HTMLFormElement)) return;
-        const formData = new FormData(form);
-        const username = String(formData.get('username') ?? '').trim();
-        const password = String(formData.get('password') ?? '').trim();
-        const displayName = String(formData.get('displayName') ?? '').trim();
-        const role = String(formData.get('role') ?? 'editor');
-
-        if (username === '' || password === '') {
-            renderUsers({ type: 'error', text: 'Identifiant et mot de passe requis.' });
-            return;
-        }
-
-        try {
-            const response = await callApi({
-                action: 'add_user',
-                csrf: state.csrf,
-                username,
-                password,
-                displayName,
-                role,
-            });
-            updateCsrf(response);
-            if (response.ok) {
-                updateUsers(response.users ?? []);
-                form.reset();
-                renderUsers({ type: 'success', text: 'Utilisateur ajoute.' });
-            } else {
-                renderUsers({ type: 'error', text: formatError('Creation impossible.', response) });
-            }
-        } catch (error) {
-            renderUsers({ type: 'error', text: `Erreur reseau: ${error}` });
-        }
-    });
-}
-
-function userRowTemplate(user) {
-    const updated = user.updatedAt ? formatDate(user.updatedAt) : '—';
-    return `
-        <tr data-user-row data-username="${escapeHtml(user.username)}">
-            <td><code>${escapeHtml(user.username)}</code></td>
-            <td><input type="text" name="displayName" value="${escapeHtml(user.displayName)}" placeholder="Nom affiche"></td>
-            <td>
-                <select name="role">
-                    <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editeur</option>
-                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrateur</option>
-                </select>
-            </td>
-            <td class="muted">${escapeHtml(updated)}</td>
-            <td class="users-actions">
-                <button type="button" class="btn btn-ghost" data-save>Enregistrer</button>
-                <button type="button" class="btn btn-ghost" data-reset>Nouveau mot de passe</button>
-                <button type="button" class="btn btn-ghost" data-delete>Supprimer</button>
-            </td>
-        </tr>
-    `;
-}
-
-async function updateUser(user) {
-    try {
-        const response = await callApi({
-            action: 'update_user',
-            csrf: state.csrf,
-            username: user.username,
-            displayName: user.displayName,
-            role: user.role,
-        });
-        updateCsrf(response);
-        if (response.ok) {
-            updateUsers(response.users ?? []);
-            renderUsers({ type: 'success', text: 'Utilisateur mis a jour.' });
-        } else {
-            renderUsers({ type: 'error', text: formatError('Impossible de mettre a jour.', response) });
-        }
-    } catch (error) {
-        renderUsers({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
-}
-
-async function deleteUser(user) {
-    if (!confirm(`Supprimer l'utilisateur ${user.username} ?`)) {
+function renderHistory(entries) {
+    if (!historyApp) return;
+    if (!entries.length) {
+        historyApp.innerHTML = '<p class="muted">Aucune entree pour le moment.</p>';
         return;
     }
-    try {
-        const response = await callApi({
-            action: 'delete_user',
-            csrf: state.csrf,
-            username: user.username,
-        });
-        updateCsrf(response);
-        if (response.ok) {
-            updateUsers(response.users ?? []);
-            renderUsers({ type: 'success', text: 'Utilisateur supprime.' });
-        } else {
-            renderUsers({ type: 'error', text: formatError('Suppression impossible.', response) });
-        }
-    } catch (error) {
-        renderUsers({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
+    historyApp.innerHTML = '<ul class="history-list">' + entries.map(entry => `
+        <li>
+            <div><strong>${escapeHtml(entry.summary || '')}</strong> <span class="muted">${formatDate(entry.timestamp)}</span></div>
+            ${renderHistoryDetails(entry.details)}
+        </li>`).join('') + '</ul>';
 }
 
-async function resetPassword(user) {
-    const password = prompt(`Nouveau mot de passe pour ${user.username} (min. 8 caracteres) :`);
-    if (password === null) {
-        return;
+function renderHistoryDetails(details) {
+    if (!details || !details.length) return '';
+    if (Array.isArray(details)) {
+        return '<ul>' + details.map(item => `<li class="muted">${escapeHtml(typeof item === 'string' ? item : JSON.stringify(item))}</li>`).join('') + '</ul>';
     }
-    const trimmed = password.trim();
-    if (trimmed.length < 8) {
-        renderUsers({ type: 'error', text: 'Mot de passe trop court (min. 8 caracteres).' });
-        return;
-    }
-    try {
-        const response = await callApi({
-            action: 'reset_password',
-            csrf: state.csrf,
-            username: user.username,
-            password: trimmed,
-        });
-        updateCsrf(response);
-        if (response.ok) {
-            updateUsers(response.users ?? []);
-            renderUsers({ type: 'success', text: 'Mot de passe mis a jour.' });
-        } else {
-            renderUsers({ type: 'error', text: formatError('Reset impossible.', response) });
-        }
-    } catch (error) {
-        renderUsers({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
-}
-
-function renderAccount(message) {
-    if (!accountApp) return;
-    accountApp.innerHTML = `
-        ${renderMessage(message)}
-        <form id="password-form" class="form-grid max-360">
-            <label>
-                Mot de passe actuel
-                <input type="password" name="currentPassword" autocomplete="current-password" required>
-            </label>
-            <label>
-                Nouveau mot de passe
-                <input type="password" name="newPassword" autocomplete="new-password" required>
-            </label>
-            <label>
-                Confirmation
-                <input type="password" name="confirmPassword" autocomplete="new-password" required>
-            </label>
-            <button type="submit" class="btn btn-primary">Modifier le mot de passe</button>
-        </form>
-        <p class="muted">Conseil : choisissez un mot de passe unique et mettez-le a jour regulierement.</p>
-    `;
-
-    accountApp.querySelector('#password-form')?.addEventListener('submit', async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        if (!(form instanceof HTMLFormElement)) return;
-
-        const formData = new FormData(form);
-        const currentPassword = String(formData.get('currentPassword') ?? '');
-        const newPassword = String(formData.get('newPassword') ?? '');
-        const confirmPassword = String(formData.get('confirmPassword') ?? '');
-
-        if (newPassword !== confirmPassword) {
-            renderAccount({ type: 'error', text: 'La confirmation ne correspond pas.' });
-            return;
-        }
-
-        try {
-            const response = await callApi({
-                action: 'change_password',
-                csrf: state.csrf,
-                currentPassword,
-                newPassword,
-            });
-            updateCsrf(response);
-            if (response.ok) {
-                form.reset();
-                renderAccount({ type: 'success', text: 'Mot de passe modifie.' });
-            } else {
-                renderAccount({ type: 'error', text: formatError('Modification impossible.', response) });
-            }
-        } catch (error) {
-            renderAccount({ type: 'error', text: `Erreur reseau: ${error}` });
-        }
-    });
-}
-
-function renderSync(message, logHtml = '') {
-    if (!syncApp || !state.github?.enabled) return;
-    const info = state.github ?? {};
-    const repoLabel = info.owner && info.repo ? `${info.owner}/${info.repo}` : 'Depot';
-    const branchLabel = info.branch ?? 'main';
-
-    syncApp.innerHTML = `
-        ${renderMessage(message)}
-        <p class="sync-meta">Depôt cible : <strong>${escapeHtml(repoLabel)}</strong> · branche <strong>${escapeHtml(branchLabel)}</strong></p>
-        <div class="actions">
-            <button class="btn btn-primary" id="sync-trigger" ${syncPending ? 'disabled' : ''}>
-                ${syncPending ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
-            </button>
-        </div>
-        <div id="sync-log" class="sync-log">${logHtml}</div>
-    `;
-
-    if (!syncPending) {
-        syncApp.querySelector('#sync-trigger')?.addEventListener('click', runSync);
-    }
-}
-
-async function runSync() {
-    if (syncPending) return;
-    try {
-        syncPending = true;
-        renderSync({ type: 'info', text: 'Synchronisation en cours...' });
-        const response = await callApi({ action: 'github_sync', csrf: state.csrf });
-        syncPending = false;
-        updateCsrf(response);
-        if (response.ok) {
-            const lines = (response.results ?? []).map(item => {
-                const status = item.status === 'updated' ? 'status-updated' : 'status-unchanged';
-                return `<span class="${status}">${escapeHtml(item.path)} · ${escapeHtml(item.status)}</span>`;
-            }).join('') || '<span class="muted">Aucun changement detecte.</span>';
-            renderSync(
-                { type: 'success', text: `Synchronisation reussie (${escapeHtml(response.branch ?? '')}).` },
-                lines
-            );
-        } else {
-            renderSync({ type: 'error', text: formatError('Synchronisation impossible.', response) });
-        }
-    } catch (error) {
-        syncPending = false;
-        renderSync({ type: 'error', text: `Erreur reseau: ${error}` });
-    }
-}
-
-async function loadProviderHealth() {
-    const providerEntries = state.providers?.providers;
-    if (!providerEntries || Object.keys(providerEntries).length === 0) {
-        renderHealthAlert([]);
-        return;
-    }
-    try {
-        const response = await callApi({ action: 'check_providers', csrf: state.csrf });
-        updateCsrf(response);
-        if (!response?.ok || !Array.isArray(response.items)) {
-            if (response?.error) {
-                renderHealthAlert([], `Verification des URLs impossible (${response.error}).`);
-            }
-            return;
-        }
-        providerStatusMap.clear();
-        const issues = [];
-        response.items.forEach(item => {
-            const key = (item.slug ?? '').toLowerCase();
-            if (key) {
-                providerStatusMap.set(key, item);
-                if (!item.ok) {
-                    issues.push(item);
-                }
-            }
-        });
-        providerHealthLoaded = true;
-        renderProviders();
-        renderHealthAlert(issues);
-    } catch (error) {
-        renderHealthAlert([], `Erreur verification URLs: ${error}`);
-    }
-}
-
-function renderHealthAlert(issues, errorMessage) {
-    if (!globalAlerts) return;
-    if (errorMessage) {
-        globalAlerts.innerHTML = `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>`;
-        return;
-    }
-    if (!issues || issues.length === 0) {
-        globalAlerts.innerHTML = '';
-        return;
-    }
-    const intro = issues.length > 1
-        ? `${issues.length} URLs semblent hors ligne.`
-        : 'Une URL semble hors ligne.';
-    const items = issues.map(item => {
-        const base = `${escapeHtml(item.slug ?? '')} → ${escapeHtml(item.baseUrl ?? '')}`;
-        const detail = item.message ? ` (${escapeHtml(item.message)})` : '';
-        return `<li>${base}${detail}</li>`;
-    }).join('');
-    globalAlerts.innerHTML = `
-        <div class="alert alert-error">
-            <p>${intro}</p>
-            <ul>${items}</ul>
-        </div>
-    `;
-}
-
-async function callApi(body) {
-    const response = await fetch('api.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-    return await response.json();
-}
-
-function updateUsers(nextUsers) {
-    users.length = 0;
-    users.push(...mapUsers(nextUsers));
-}
-
-function updateCsrf(response) {
-    if (response && typeof response.csrf === 'string') {
-        state.csrf = response.csrf;
-    }
-}
-
-function getProviderStatus(slug) {
-    if (!slug) return null;
-    return providerStatusMap.get(slug.trim().toLowerCase()) ?? null;
-}
-
-function renderStatusPill(slug) {
-    const status = getProviderStatus(slug);
-    if (!providerHealthLoaded) {
-        return `<span class="status-pill muted">Scan en cours...</span>`;
-    }
-    if (!status) {
-        return `<span class="status-pill muted">Non verifie</span>`;
-    }
-    const cls = status.ok ? 'status-pill ok' : 'status-pill warn';
-    const label = status.ok ? 'En ligne' : 'A verifier';
-    const code = status.httpCode ? ` (${status.httpCode})` : '';
-    const details = status.message || (status.ok ? 'Serveur accessible' : 'Serveur injoignable');
-    return `<span class="${cls}" title="${escapeHtml(details)}">${label}${code}</span>`;
-}
-
-function renderMessage(message) {
-    if (!message) return '';
-    const classMap = {
-        error: 'alert alert-error',
-        success: 'alert alert-success',
-        info: 'alert alert-info',
-    };
-    const cls = classMap[message.type] ?? 'alert alert-success';
-    return `<p class="${cls}">${message.text}</p>`;
+    return '';
 }
 
 function escapeHtml(value) {
@@ -654,27 +61,279 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
-function formatError(prefix, response) {
-    let base = response?.error ? `${prefix} (${response.error}).` : `${prefix}`;
-    if (Array.isArray(response?.details) && response.details.length > 0) {
-        const safeDetails = response.details.map(item => escapeHtml(String(item)));
-        return `${base}<br><span class="muted">${safeDetails.join('<br>')}</span>`;
-    }
-    if (response?.min) {
-        return `${base}<br><span class="muted">Minimum requis: ${response.min}</span>`;
-    }
-    if (response?.message) {
-        base += `<br><span class="muted">${escapeHtml(response.message)}</span>`;
-    }
-    return base;
+function formatDate(input) {
+    if (!input) return '';
+    const date = new Date(input);
+    return Number.isNaN(date.getTime()) ? input : date.toLocaleString('fr-FR');
 }
 
-function formatDate(input) {
-    try {
-        const date = new Date(input);
-        if (Number.isNaN(date.getTime())) return input;
-        return date.toLocaleString();
-    } catch {
-        return input;
+if (providerTable) {
+    document.querySelector('[data-add-provider]').addEventListener('click', () => {
+        providerTable.appendChild(buildProviderRow());
+    });
+    document.querySelector('[data-save-providers]').addEventListener('click', async () => {
+        const payload = collectRows(providerTable, ['slug', 'name', 'baseUrl']);
+        try {
+            const response = await callApi('save_providers', { providers: payload });
+            providersMessage.textContent = 'Providers enregistres (' + Object.keys(response.providers.providers || {}).length + ')';
+            renderHistory(response.history?.entries || state.history?.entries || []);
+        } catch (error) {
+            providersMessage.textContent = formatError(error);
+        }
+    });
+}
+
+if (hosterTable) {
+    document.querySelector('[data-add-hoster]').addEventListener('click', () => {
+        hosterTable.appendChild(buildHosterRow());
+    });
+    document.querySelector('[data-save-hosters]').addEventListener('click', async () => {
+        const payload = collectRows(hosterTable, ['key', 'name', 'url']);
+        try {
+            await callApi('save_hosters', { hosters: payload });
+            hostersMessage.textContent = 'Hosters mis a jour (' + payload.length + ')';
+        } catch (error) {
+            hostersMessage.textContent = formatError(error);
+        }
+    });
+}
+
+if (rulesTable) {
+    const addRuleBtn = document.querySelector('[data-add-rule]');
+    const saveRulesBtn = document.querySelector('[data-save-rules]');
+    if (addRuleBtn) {
+        addRuleBtn.addEventListener('click', () => {
+            rulesTable.appendChild(buildRuleRow());
+        });
     }
+    rulesTable.addEventListener('click', event => {
+        const clearBtn = event.target.closest('[data-clear-rule]');
+        if (!clearBtn) return;
+        const row = clearBtn.closest('tr');
+        if (!row) return;
+        row.querySelectorAll('input').forEach(input => {
+            if (input.dataset.field === 'slug') return;
+            input.value = '';
+        });
+    });
+    if (saveRulesBtn) {
+        saveRulesBtn.addEventListener('click', async () => {
+            const payload = collectRows(rulesTable, ['slug', 'searchPath', 'searchParam', 'itemSel', 'titleSel', 'urlSel', 'embedSel']);
+            try {
+                const response = await callApi('save_rules', { rules: payload });
+                const count = Object.keys(response.rules?.rules || {}).length;
+                if (rulesMessage) {
+                    rulesMessage.textContent = 'Règles enregistrées (' + count + ')';
+                }
+            } catch (error) {
+                if (rulesMessage) {
+                    rulesMessage.textContent = formatError(error);
+                }
+            }
+        });
+    }
+}
+
+if (githubButton) {
+    githubButton.addEventListener('click', async () => {
+        githubButton.disabled = true;
+        githubStatus.textContent = 'Synchronisation en cours...';
+        try {
+            const response = await callApi('github_sync');
+            githubStatus.textContent = 'OK : ' + (response.results?.length || 0) + ' fichiers pousses.';
+            renderHistory(response.history?.entries || state.history?.entries || []);
+        } catch (error) {
+            githubStatus.textContent = 'Erreur: ' + formatError(error);
+        } finally {
+            githubButton.disabled = false;
+        }
+    });
+}
+
+if (accountForm) {
+    accountForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const current = accountForm.querySelector('input[name="current"]').value;
+        const next = accountForm.querySelector('input[name="next"]').value;
+        try {
+            await callApi('change_password', { currentPassword: current, newPassword: next });
+            accountMessage.textContent = 'Mot de passe mis a jour.';
+            accountForm.reset();
+        } catch (error) {
+            accountMessage.textContent = formatError(error);
+        }
+    });
+}
+
+if (userForm && userTable) {
+    let editing = null;
+userTable.addEventListener('click', async (event) => {
+        const editBtn = event.target.closest('[data-edit-user]');
+        if (editBtn) {
+            const username = editBtn.getAttribute('data-edit-user');
+            const data = (state.users || []).find(user => user.username === username);
+            if (!data) return;
+            userForm.querySelector('[data-user-username]').value = data.username;
+            userForm.querySelector('[data-user-username]').disabled = true;
+            userForm.querySelector('[data-user-display]').value = data.displayName;
+            userForm.querySelector('[data-user-role]').value = data.role;
+            userForm.querySelector('[data-user-password]').value = '';
+            document.getElementById('user-form-title').textContent = 'Editer ' + data.username;
+            editing = data.username;
+            return;
+        }
+        const resetBtn = event.target.closest('[data-reset-user]');
+        if (resetBtn) {
+            const username = resetBtn.getAttribute('data-reset-user');
+            const password = prompt('Nouveau mot de passe pour ' + username);
+            if (!password) return;
+            try {
+                await callApi('reset_password', { username, password });
+                usersMessage.textContent = 'Mot de passe reinitialise.';
+            } catch (error) {
+                usersMessage.textContent = formatError(error);
+            }
+            return;
+        }
+        const deleteBtn = event.target.closest('[data-delete-user]');
+        if (deleteBtn) {
+            const username = deleteBtn.getAttribute('data-delete-user');
+            if (!confirm('Supprimer ' + username + ' ?')) return;
+            try {
+                const response = await callApi('delete_user', { username });
+                refreshUsers(response.users || []);
+                usersMessage.textContent = 'Utilisateur supprime.';
+            } catch (error) {
+                usersMessage.textContent = formatError(error);
+            }
+        }
+    });
+
+    userForm.querySelector('[data-reset-user-form]').addEventListener('click', () => {
+        editing = null;
+        userForm.querySelector('[data-user-username]').disabled = false;
+        userForm.reset();
+        document.getElementById('user-form-title').textContent = 'Ajouter un utilisateur';
+    });
+
+    userForm.querySelector('[data-save-user]').addEventListener('click', async () => {
+        const username = userForm.querySelector('[data-user-username]').value;
+        const displayName = userForm.querySelector('[data-user-display]').value;
+        const role = userForm.querySelector('[data-user-role]').value;
+        const password = userForm.querySelector('[data-user-password]').value;
+        try {
+            let response;
+            if (editing) {
+                response = await callApi('update_user', { username: editing, displayName, role });
+            } else {
+                response = await callApi('add_user', { username, displayName, role, password });
+            }
+            refreshUsers(response.users || []);
+            usersMessage.textContent = 'Utilisateur enregistre.';
+            userForm.reset();
+            userForm.querySelector('[data-user-username]').disabled = false;
+            editing = null;
+            document.getElementById('user-form-title').textContent = 'Ajouter un utilisateur';
+        } catch (error) {
+            usersMessage.textContent = formatError(error);
+        }
+    });
+}
+
+function refreshUsers(users) {
+    if (!userTable) return;
+    state.users = users;
+    userTable.innerHTML = users.map(user => `
+        <tr>
+            <td>${escapeHtml(user.username)}</td>
+            <td>${escapeHtml(user.displayName)}</td>
+            <td>${escapeHtml(user.role)}</td>
+            <td>
+                <button class="btn btn-sm" data-edit-user="${escapeHtml(user.username)}">Editer</button>
+                <button class="btn btn-sm" data-reset-user="${escapeHtml(user.username)}">Reset</button>
+                <button class="btn btn-sm btn-danger" data-delete-user="${escapeHtml(user.username)}">Supprimer</button>
+            </td>
+        </tr>`).join('');
+}
+
+function buildProviderRow() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" data-field="slug"></td>
+        <td><input type="text" data-field="name"></td>
+        <td><input type="url" data-field="baseUrl"></td>`;
+    return tr;
+}
+
+function buildHosterRow() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" data-field="key"></td>
+        <td><input type="text" data-field="name"></td>
+        <td><input type="url" data-field="url"></td>`;
+    return tr;
+}
+
+function buildRuleRow() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" data-field="slug"></td>
+        <td><input type="text" data-field="searchPath" placeholder="/search"></td>
+        <td><input type="text" data-field="searchParam" placeholder="q"></td>
+        <td><input type="text" data-field="itemSel" placeholder=".post a[href]"></td>
+        <td><input type="text" data-field="titleSel" placeholder=".title"></td>
+        <td><input type="text" data-field="urlSel" placeholder="a@href"></td>
+        <td><input type="text" data-field="embedSel" placeholder="iframe@src"></td>
+        <td><button type="button" class="btn btn-sm btn-link" data-clear-rule>Effacer</button></td>`;
+    return tr;
+}
+
+function collectRows(tbody, fields) {
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(row => {
+        const entry = {};
+        let empty = true;
+        fields.forEach(field => {
+            const value = row.querySelector(`[data-field="${field}"]`)?.value.trim() || '';
+            entry[field] = value;
+            if (value) empty = false;
+        });
+        if (!empty) rows.push(entry);
+    });
+    return rows;
+}
+
+async function callApi(action, payload = {}) {
+    const body = { action, csrf: state.csrf, ...payload };
+    const response = await fetch('api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    const text = await response.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (error) {
+        throw new Error('Reponse invalide (' + response.status + ')');
+    }
+    if (data.csrf) {
+        state.csrf = data.csrf;
+    }
+    if (data.history && Array.isArray(data.history.entries)) {
+        state.history = data.history.entries;
+        renderHistory(state.history);
+    }
+    if (!response.ok || data.error) {
+        throw data;
+    }
+    return data;
+}
+
+function formatError(err) {
+    if (!err) return 'Erreur inconnue';
+    if (typeof err === 'string') return err;
+    if (err.message) return err.message;
+    if (err.error) return err.error;
+    return 'Erreur';
 }

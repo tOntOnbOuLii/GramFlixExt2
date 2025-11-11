@@ -1,55 +1,44 @@
-# GramFlix Webpanel (tafili.fr)
+﻿# GramFlix Webpanel
 
-Panel PHP responsive pour modifier les JSON consommes par les extensions GramFlix, gerer les utilisateurs et maintenir les hosters. Aucun framework requis : upload des fichiers et c'est pret. Le panneau embarque maintenant le branding GramFlix (logo + palette neon) ainsi qu'un check automatique de la disponibilite des URLs providers.
+Ce dossier contient la version PHP autonome du panneau d'administration GramFlix. Vous pouvez le zipper puis l'envoyer tel quel sur votre FTP : aucun framework ou composer n'est requis.
+
+## Fonctionnalites
+
+- CRUD des providers (slug/nom/URL) avec limite `MAX_PROVIDERS` configurable.
+- CRUD des hosters.
+- Edition des regles d'extraction (`rules.json`) pour piloter les selecteurs CSS utilises par l'extension CloudStream.
+- Gestion des utilisateurs (admin/editor), reset et changement de mot de passe.
+- Historique persistant (`data/history.json`) et journalisation dans `data/panel.log`.
+- Diagnostics des droits d'ecriture sur `data/`.
+- Synchronisation GitHub (PUT via l'API) pour `providers.json`, `hosters.json` et `rules.json` lorsque `GITHUB_*` est defini.
+
+## Installation
+
+1. Copiez/zippez le dossier `tafili.fr/` puis uploadez-le sur votre hebergement.
+2. Dupliquez `config.local.example.php` en `config.local.php` et renseignez titre, identifiants, HTTPS, GitHub, etc.
+3. Verifiez que PHP peut ecrire dans `tafili.fr/data/` (chmod 775 sur le dossier + 664 sur les fichiers).
+4. Connectez-vous avec les identifiants `DEFAULT_ADMIN_*`, changez le mot de passe dans l'onglet "Mon compte".
 
 ## Structure
 
 ```
 tafili.fr/
-├── assets/              # JS + CSS
-├── data/                # JSON persistes (providers, hosters, users)
-├── api.php              # Endpoints AJAX (providers/hosters/utilisateurs)
-├── bootstrap.php        # Helpers communs (auth, CSRF, stockage JSON)
-├── config.php           # Configuration par defaut (a surcharger)
-├── config.local.php     # Overrides locaux (optionnel, gitignore)
-└── index.php            # Interface web
++-- assets/          # JS, CSS, logos
++-- data/            # JSON persistents (providers, hosters, rules, users, history) + logs
++-- partials/        # fragments PHP (header/footer/login)
++-- views/           # sections (dashboard, providers, hosters, rules, users, account)
++-- api.php          # endpoints AJAX (JSON)
++-- bootstrap.php    # Auth, stockage, helpers GitHub
++-- config.php       # valeurs par defaut
++-- index.php        # routeur principal + rendu HTML
++-- README.md
 ```
 
-## Installation
+## Flux de travail
 
-1. Copiez le dossier `tafili.fr` sur votre hebergement (FTP/SFTP, rsync...).
-2. Ouvrez/creez `config.local.php` pour personnaliser le panneau :
-   ```php
-   <?php
-   define('PANEL_TITLE', 'GramFlix Webpanel');
-   define('DEFAULT_ADMIN_USERNAME', 'florian');
-   define('DEFAULT_ADMIN_DISPLAY', 'Florian');
-   define('DEFAULT_ADMIN_PASSWORD', '14061989');
-   ```
-   > Les valeurs ci-dessus servent uniquement a initialiser le premier compte. Connectez-vous puis changez le mot de passe immediatement.
-3. Assurez-vous que PHP peut ecrire dans `tafili.fr/data/` (chmod 775/755 selon l'hebergement).
-4. Rendez-vous sur `https://cs.tafili.fr/` (ou votre URL) et connectez-vous avec l'utilisateur `Florian`.
+- `index.php` injecte `window.__PANEL_STATE__` consomme par `assets/app.js`.
+- Chaque action JS (`save_*`, `github_sync`, utilisateurs...) poste sur `api.php` avec token CSRF.
+- Les mutations persistantes alimentent `history.json` et les diagnostics.
+- `panel_log()` ecrit les anomalies serveur dans `data/panel.log`.
 
-## Fonctionnalites
-
-- Responsive (tableaux scrollables, boutons adaptatifs).
-- Jusqu'a **32 providers** (1J1F + 31 autres).
-- CRUD complet des hosters.
-- Gestion des utilisateurs (ajout, edition, suppression, reset mot de passe).
-- Chaque utilisateur peut modifier son mot de passe via le panneau.
-- Mots de passe hashes (`password_hash`, `password_verify`).
-- Bouton de synchronisation GitHub (met a jour `providers.json` / `hosters.json` sur le depot configure).
-- Verification automatique des providers : le dashboard indique quelles URLs sont injoignables et vous notifie a la connexion.
-- CSRF + sessions pour securiser les appels API.
-- Ecriture atomique des JSON (`*.tmp` + rename) pour eviter la corruption.
-
-## Synchronisation GitHub
-
-Le panel modifie simplement les fichiers du dossier `data/`. Reutilisez votre script ou job existant (cron, bouton panel precedent, etc.) pour `git add/commit/push`.
-
-## Personnalisation
-
-- `PANEL_TITLE`, `PANEL_BASE_URL`, `MAX_PROVIDERS` : ajustez-les dans `config.local.php`.
-- Les styles sont dans `assets/style.css` et le front dans `assets/app.js`.
-- Vous pouvez remplacer `assets/logo.jpg` / `favicon.png` par vos propres elements si besoin.
-- Pour creer un autre compte par defaut, maj `DEFAULT_ADMIN_*` avant le premier lancement (apres creation les utilisateurs sont conserves dans `data/users.json`).
+Bon deploiement !
