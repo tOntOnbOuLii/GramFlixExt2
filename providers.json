@@ -109,6 +109,10 @@
             "name": "Stream 4 Free",
             "baseUrl": "https://www.stream4free.tv/tv-live-france"
         },
+        "streamscape": {
+            "name": "StreamScape",
+            "baseUrl": "https://streamscape.lol/sous-page/index.html"
+        },
         "nebryx": {
             "name": "Nebryx",
             "baseUrl": "https://nebryx.fr"

@@ -1,17 +1,406 @@
-{
+﻿{
     "version": 1,
     "hosters": {
-        "uqload": {
-            "name": "Uqload",
-            "url": "https://uqload.*"
-        },
-        "doodstream": {
-            "name": "DoodStream",
-            "url": "https://dood.*"
-        },
-        "streamtape": {
-            "name": "StreamTape",
-            "url": "https://streamtape.com"
-        }
-    }
+                    "1fichier": {
+                                     "name": "1Fichier",
+                                     "url": "*.1fichier.com"
+                                 },
+                    "ahcdn": {
+                                  "name": "AHCDN",
+                                  "url": "*.ahcdn.com"
+                              },
+                    "autruche": {
+                                     "name": "Autruche.space",
+                                     "url": "*.autruche.space"
+                                 },
+                    "bigcdn": {
+                                   "name": "BigCDN",
+                                   "url": "*.bigcdn.cc"
+                               },
+                    "bigwarp": {
+                                    "name": "BigWarp",
+                                    "url": "*.bigwarp.io"
+                                },
+                    "bramtiv": {
+                                    "name": "Bramtiv",
+                                    "url": "*.bramtiv.com"
+                                },
+                    "bunkr": {
+                                  "name": "Bunkr",
+                                  "url": "*.bunkr.ru, *.bunkr.is"
+                              },
+                    "cdn-tnmr": {
+                                     "name": "CDN-TNMR",
+                                     "url": "*.cdn-tnmr.org"
+                                 },
+                    "cdnamz": {
+                                   "name": "CDNAMZ",
+                                   "url": "*.cdnamz.me"
+                               },
+                    "cdnup": {
+                                  "name": "CDNUP",
+                                  "url": "*.cdnup.cc"
+                              },
+                    "cloudswitches": {
+                                          "name": "CloudSwitches",
+                                          "url": "*.cloudswitches.com"
+                                      },
+                    "dailymotion": {
+                                        "name": "Dailymotion",
+                                        "url": "*.dailymotion.com"
+                                    },
+                    "dailyuploads": {
+                                         "name": "DailyUploads",
+                                         "url": "*.dailyuploads.net"
+                                     },
+                    "doodstream": {
+                                       "name": "Doodstream",
+                                       "url": "*.doodstream.com"
+                                   },
+                    "easyvidplayer": {
+                                          "name": "EasyVidPlayer",
+                                          "url": "*.easyvidplayer.com"
+                                      },
+                    "edgeonbandwidth": {
+                                            "name": "EdgeOn Bandwidth",
+                                            "url": "*.edgeon-bandwidth.com"
+                                        },
+                    "embed4me": {
+                                     "name": "Embed4Me",
+                                     "url": "*.embed4me.com"
+                                 },
+                    "emby": {
+                                 "name": "Emby",
+                                 "url": "*.emby.media"
+                             },
+                    "ezplayer": {
+                                     "name": "EZPlayer",
+                                     "url": "*.ezplayer.me"
+                                 },
+                    "externulls": {
+                                       "name": "Externulls",
+                                       "url": "*.externulls.com"
+                                   },
+                    "fembed": {
+                                   "name": "Fembed",
+                                   "url": "*.fembed.com, *.fembed.net"
+                               },
+                    "filechan": {
+                                     "name": "FileChan",
+                                     "url": "*.filechan.org"
+                                 },
+                    "filelions": {
+                                      "name": "FileLions",
+                                      "url": "*.filelions.to"
+                                  },
+                    "filemoon": {
+                                     "name": "Filemoon",
+                                     "url": "*.filemoon.sx"
+                                 },
+                    "flexydrive": {
+                                       "name": "FlexyDrive",
+                                       "url": "*.flexydrive.com"
+                                   },
+                    "gofile": {
+                                   "name": "GoFile",
+                                   "url": "*.gofile.io"
+                               },
+                    "google-drive": {
+                                         "name": "Google Drive",
+                                         "url": "*.drive.google.com, *.docs.google.com"
+                                     },
+                    "hexupload": {
+                                      "name": "HexUpload",
+                                      "url": "*.hexupload.net"
+                                  },
+                    "i8yz83pn": {
+                                     "name": "i8yz83pn",
+                                     "url": "*.i8yz83pn.com"
+                                 },
+                    "imagepond": {
+                                      "name": "ImagePond",
+                                      "url": "*.imagepond.net"
+                                  },
+                    "invidious": {
+                                      "name": "Invidious (YT Alt)",
+                                      "url": "*.invidio.us, *.invidious.*"
+                                  },
+                    "katfile": {
+                                    "name": "KatFile",
+                                    "url": "*.katfile.com"
+                                },
+                    "krakenfiles": {
+                                        "name": "KrakenFiles",
+                                        "url": "*.krakenfiles.com"
+                                    },
+                    "mediafire": {
+                                      "name": "MediaFire",
+                                      "url": "*.mediafire.com"
+                                  },
+                    "mega": {
+                                 "name": "Mega",
+                                 "url": "*.mega.nz"
+                             },
+                    "mixdrop": {
+                                    "name": "MixDrop",
+                                    "url": "*.mixdrop.co"
+                                },
+                    "mixload": {
+                                    "name": "Mixload",
+                                    "url": "*.mixloads.com"
+                                },
+                    "mjedge": {
+                                   "name": "MJEdge",
+                                   "url": "*.mjedge.net"
+                               },
+                    "mp4upload": {
+                                      "name": "Mp4Upload",
+                                      "url": "*.mp4upload.com"
+                                  },
+                    "mxcontent": {
+                                      "name": "MXContent",
+                                      "url": "*.mxcontent.net"
+                                  },
+                    "netu": {
+                                 "name": "Netu",
+                                 "url": "*.netu.tv"
+                             },
+                    "odyssee": {
+                                    "name": "Odysee",
+                                    "url": "*.odysee.com"
+                                },
+                    "okru": {
+                                 "name": "OK.ru",
+                                 "url": "*.ok.ru"
+                             },
+                    "onedrive": {
+                                     "name": "OneDrive",
+                                     "url": "*.onedrive.live.com"
+                                 },
+                    "pcdnpt": {
+                                   "name": "CloudSwitches CDN",
+                                   "url": "*.cloudswitches.com"
+                               },
+                    "peertube": {
+                                     "name": "PeerTube",
+                                     "url": "*peertube*.*.*"
+                                 },
+                    "pexeldrain": {
+                                       "name": "PixelDrain",
+                                       "url": "*.pixeldrain.com"
+                                   },
+                    "privatehost": {
+                                        "name": "PrivateHost",
+                                        "url": "*.privatehost.com"
+                                    },
+                    "rockfile": {
+                                     "name": "RockFile",
+                                     "url": "*.rockfile.eu"
+                                 },
+                    "rutube": {
+                                   "name": "Rutube",
+                                   "url": "*.rutube.ru"
+                               },
+                    "sbcd": {
+                                 "name": "SB-CD",
+                                 "url": "*.sb-cd.com"
+                             },
+                    "scribd": {
+                                   "name": "Scribd",
+                                   "url": "*.scribd.com"
+                               },
+                    "sendspace": {
+                                      "name": "SendSpace",
+                                      "url": "*.sendspace.com"
+                                  },
+                    "sendvid": {
+                                    "name": "SendVid",
+                                    "url": "*.sendvid.com"
+                                },
+                    "sibnet": {
+                                   "name": "Sibnet",
+                                   "url": "*.sibnet.ru, video.sibnet.ru"
+                               },
+                    "streamhls": {
+                                      "name": "StreamHLS",
+                                      "url": "*.streamhls.to"
+                                  },
+                    "streamtape": {
+                                       "name": "StreamTape",
+                                       "url": "*.streamtape.com"
+                                   },
+                    "streamwish": {
+                                       "name": "StreamWish",
+                                       "url": "*.streamwish.to"
+                                   },
+                    "strmupcdn": {
+                                      "name": "StrmupCDN",
+                                      "url": "*.strmupcdn.cc"
+                                  },
+                    "tapestream": {
+                                       "name": "TapeStream",
+                                       "url": "*.tapestream.net, *.streamtap.com"
+                                   },
+                    "tezfiles": {
+                                     "name": "TezFiles",
+                                     "url": "*.tezfiles.com"
+                                 },
+                    "tiktokcdn": {
+                                      "name": "TiktokCDN",
+                                      "url": "*.tiktokcdn.com"
+                                  },
+                    "tnmr": {
+                                 "name": "TNMR",
+                                 "url": "*.tnmr.org"
+                             },
+                    "tusfiles": {
+                                     "name": "TusFiles",
+                                     "url": "*.tusfiles.net"
+                                 },
+                    "up-4ever": {
+                                     "name": "Up4Ever",
+                                     "url": "*.up-4ever.com"
+                                 },
+                    "uploadgig": {
+                                      "name": "UploadGig",
+                                      "url": "*.uploadgig.com"
+                                  },
+                    "uploadrar": {
+                                      "name": "UploadRAR",
+                                      "url": "*.uploadrar.com"
+                                  },
+                    "upstream": {
+                                     "name": "Upstream",
+                                     "url": "*.upstream.to"
+                                 },
+                    "unsbio": {
+                                   "name": "UNS.bio",
+                                   "url": "*.uns.bio"
+                               },
+                    "uqload": {
+                                   "name": "UQLoad",
+                                   "url": "*.uqload.io, *.uqload.cx"
+                               },
+                    "uptobox": {
+                                    "name": "UpToBox",
+                                    "url": "*.uptobox.com"
+                                },
+                    "uptostream": {
+                                       "name": "Uptostream",
+                                       "url": "*.uptostream.com"
+                                   },
+                    "vidoza": {
+                                   "name": "Vidoza",
+                                   "url": "*.vidoza.net"
+                               },
+                    "vidmoly": {
+                                    "name": "Vidmoly",
+                                    "url": "*.vidmoly.net"
+                                },
+                    "vidyard": {
+                                    "name": "Vidyard",
+                                    "url": "*.vidyard.com"
+                                },
+                    "vimeo": {
+                                  "name": "Vimeo",
+                                  "url": "*.vimeo.com"
+                              },
+                    "vk": {
+                               "name": "VK",
+                               "url": "*.vk.com"
+                           },
+                    "voe": {
+                                "name": "VOE",
+                                "url": "*.voe.sx"
+                            },
+                    "wetransfer": {
+                                       "name": "WeTransfer",
+                                       "url": "*.wetransfer.com"
+                                   },
+                    "wistia": {
+                                   "name": "Wistia",
+                                   "url": "*.wistia.com"
+                               },
+                    "youtube": {
+                                    "name": "YouTube",
+                                    "url": "*.youtube.com, *.youtube-nocookie.com"
+                                },
+                    "flixiptv": {
+                                     "name": "Flix IPTV",
+                                     "url": "*.flixiptv.com"
+                                 },
+                    "gsesmartiptv": {
+                                         "name": "GSE Smart IPTV",
+                                         "url": "*.gsesmartiptv.com"
+                                     },
+                    "iptvsmarters": {
+                                         "name": "IPTV Smarters",
+                                         "url": "*.iptvsmarters.com"
+                                     },
+                    "jellyfin": {
+                                     "name": "Jellyfin",
+                                     "url": "*.jellyfin.org"
+                                 },
+                    "kodi": {
+                                 "name": "Kodi",
+                                 "url": "(local, plugins)"
+                             },
+                    "molotov": {
+                                    "name": "Molotov",
+                                    "url": "*.molotov.tv"
+                                },
+                    "mycanal": {
+                                    "name": "MyCanal",
+                                    "url": "*.mycanal.fr"
+                                },
+                    "perfectplayer": {
+                                          "name": "Perfect Player",
+                                          "url": "*.perfectplayer.tv"
+                                      },
+                    "plex": {
+                                 "name": "Plex",
+                                 "url": "*.plex.tv"
+                             },
+                    "pluto": {
+                                  "name": "Pluto TV",
+                                  "url": "*.pluto.tv"
+                              },
+                    "rakuten": {
+                                    "name": "Rakuten TV",
+                                    "url": "*.rakuten.tv"
+                                },
+                    "6play": {
+                                  "name": "6play",
+                                  "url": "*.6play.fr"
+                              },
+                    "stremio": {
+                                    "name": "Stremio",
+                                    "url": "*.strem.io"
+                                },
+                    "tubitv": {
+                                   "name": "Tubi TV",
+                                   "url": "*.tubitv.com"
+                               },
+                    "facebook-video": {
+                                           "name": "Facebook Video",
+                                           "url": "*.facebook.com, *.fbcdn.net"
+                                       },
+                    "icloud": {
+                                   "name": "iCloud",
+                                   "url": "*.icloud.com"
+                               },
+                    "twitch": {
+                                   "name": "Twitch",
+                                   "url": "*.twitch.tv"
+                               },
+                    "dropbox": {
+                                    "name": "Dropbox",
+                                    "url": "*.dropbox.com"
+                                },
+                    "pcloud": {
+                                   "name": "pCloud",
+                                   "url": "*.pcloud.com"
+                               }
+                }
 }
+
