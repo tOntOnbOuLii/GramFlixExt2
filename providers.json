@@ -19,7 +19,7 @@
         },
         "cinepulse": {
             "name": "Cinepulse",
-            "baseUrl": "https://cinepulse.lol/"
+            "baseUrl": "https://cinepulse.lol"
         },
         "cmd-stream": {
             "name": "CMD-Stream",
@@ -47,7 +47,7 @@
         },
         "flemmix": {
             "name": "Flemmix",
-            "baseUrl": "https://flemmix.cam/"
+            "baseUrl": "https://flemmix.cam"
         },
         "frembed": {
             "name": "Frembed",
@@ -109,13 +109,13 @@
             "name": "Stream 4 Free",
             "baseUrl": "https://www.stream4free.tv/tv-live-france"
         },
-        "streamscape": {
-            "name": "Streamscape",
-            "baseUrl": "https://streamscape.lol/sous-page/index.html"
+        "nebryx": {
+            "name": "Nebryx",
+            "baseUrl": "https://nebryx.fr"
         },
         "wookafr": {
             "name": "WookaFR",
-            "baseUrl": "https://wookafr.fans"
+            "baseUrl": "https://wookafr.boo/"
         },
         "wowfilms": {
             "name": "WoW-Films",
