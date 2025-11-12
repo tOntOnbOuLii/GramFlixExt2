@@ -1,4 +1,9 @@
-﻿GramFlix v1.4.18
+﻿GramFlix v1.4.19
+----------------
+
+- Corrige l'accueil et la recherche Coflix par TMDB (sections populaires + `search`) pour fournir de vrais films/séries dans Cloudstream et rendre `avatar` accessible.
+- Build : `:app:make` (plugin version 24, artefact 96812 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+GramFlix v1.4.18
 ----------------
 
 - Corrige l'accueil Coflix en générant ses sections populaires via l'API TMDB (au lieu du contenu marketing) pour présenter de vrais films/séries dans Cloudstream.
@@ -143,6 +148,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 

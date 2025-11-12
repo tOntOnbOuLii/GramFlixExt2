@@ -480,6 +480,60 @@ class ConfigDrivenProvider : MainAPI() {
         return items
     }
 
+    private suspend fun searchCoflix(meta: ProviderMeta, query: String): List<SearchItem> {
+        if (query.isBlank()) return emptyList()
+        val json = tmdbGet("/search/multi", mapOf("query" to query, "page" to "1")) ?: return emptyList()
+        val results = json.optJSONArray("results") ?: return emptyList()
+        val items = mutableListOf<SearchItem>()
+        val seen = hashSetOf<String>()
+        for (index in 0 until results.length()) {
+            val obj = results.optJSONObject(index) ?: continue
+            val id = obj.optInt("id")
+            if (id <= 0) continue
+            val mediaType = obj.optString("media_type").lowercase(Locale.ROOT)
+            val titleKey: String
+            val dateKey: String
+            val tvType: TvType
+            val typeSlug: String
+            when (mediaType) {
+                "movie" -> {
+                    titleKey = "title"
+                    dateKey = "release_date"
+                    tvType = TvType.Movie
+                    typeSlug = "movie"
+                }
+                "tv" -> {
+                    titleKey = "name"
+                    dateKey = "first_air_date"
+                    tvType = TvType.TvSeries
+                    typeSlug = "tv"
+                }
+                else -> continue
+            }
+            val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
+            val poster = buildNebryxPoster(obj.optString("poster_path"))
+            val url = buildNebryxUrl(typeSlug, id)
+            if (!seen.add("$typeSlug-$id")) continue
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = url,
+                poster = poster,
+                includeProvider = true,
+                query = query,
+                tvType = tvType
+            ) ?: continue
+            if (tvType == TvType.Movie) {
+                val year = tmdbReleaseYear(obj.optString(dateKey))
+                if (year != null) {
+                    (item.response as? MovieSearchResponse)?.year = year
+                }
+            }
+            items += item
+        }
+        return items
+    }
+
     private suspend fun fetchNebryxHome(meta: ProviderMeta): List<HomePageList> {
         val sections = mutableListOf<HomePageList>()
         val endpoints = listOf(
@@ -1874,6 +1928,10 @@ class ConfigDrivenProvider : MainAPI() {
         val results = mutableListOf<SearchItem>()
         for (meta in metas) {
             try {
+                if (isCoflix(meta)) {
+                    results += searchCoflix(meta, query)
+                    continue
+                }
                 if (isNebryx(meta)) {
                     results += searchNebryx(meta, query)
                     continue
