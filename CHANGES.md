@@ -1,3 +1,11 @@
+GramFlix v1.4.16
+----------------
+
+- Refond les règles DLE (CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss, PapaduStream) pour appeler directement `index.php?do=search` et extraire les cartes `.poster/.short-*`, ce qui restaure les grilles complètes et les résumés sur CloudStream.
+- Met à jour les URLs distantes de Cinepulse (`cinepulse.homes`) et CoFliX (`coflix.io`) dans toutes les configs (app + tafili + sites) afin que la recherche et l'accueil basculent instantanément sur les miroirs actifs.
+- Ajoute un renommage des hosters côté `ConfigDrivenProvider` afin d'afficher les labels normalisés issus de `hosters.json` plutôt que les noms techniques des extracteurs CloudStream.
+- Build : `:app:make` (plugin version 21, artefact 95 654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.15
 ----------------
 
@@ -123,5 +131,4 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
-
 

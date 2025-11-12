@@ -19,7 +19,7 @@
         },
         "cinepulse": {
             "name": "Cinepulse",
-            "baseUrl": "https://cinepulse.lol"
+            "baseUrl": "https://cinepulse.homes"
         },
         "cmd-stream": {
             "name": "CMD-Stream",
@@ -27,7 +27,7 @@
         },
         "coflix": {
             "name": "CoFliX",
-            "baseUrl": "https://coflix.boo"
+            "baseUrl": "https://coflix.io"
         },
         "cpasmal": {
             "name": "CPasMal",

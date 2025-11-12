@@ -744,11 +744,28 @@ class ConfigDrivenProvider : MainAPI() {
                 ?: detectHoster(link.referer, hosterPatterns)
             if (detected != null) {
                 val label = detected.displayName
-                original(link.copy(source = label, name = label))
+                original(relabeledLink(link, label))
             } else {
                 original(link)
             }
         }
+    }
+
+    private fun relabeledLink(link: ExtractorLink, label: String): ExtractorLink {
+        val headers = link.headers ?: emptyMap()
+        val extractorData = link.extractorData
+        val referer = link.referer
+        val quality = link.quality
+        return ExtractorLink(
+            label,
+            label,
+            link.url,
+            referer,
+            quality,
+            headers,
+            extractorData,
+            link.type
+        )
     }
 
     private fun findMetaBySlug(metas: List<ProviderMeta>, slug: String): ProviderMeta? {

@@ -1,3 +1,10 @@
+GramFlix v1.4.16
+
+- DLE : CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss et PapaduStream s'appuient désormais sur `index.php?do=search&story=...` avec des sélecteurs `.poster/.short-*`, ce qui rétablit les listes complètes (films + séries) et les synopsis dans Cloudstream.
+- Remote config : Cinepulse pointe sur `https://cinepulse.homes` et CoFliX sur `https://coflix.io` (app/assets + tafili + sites) pour suivre les miroirs actifs.
+- Provider runtime : le wrapper `wrapCallbackWithHosters` renomme les links avec les labels issus de `hosters.json`, ce qui évite les noms d'extracteurs obscurs dans la UI.
+- Build : `:app:make` (plugin version 21, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.15
 
 - Ajoute les 31 providers supplementaires (Anime-Sama, BuzzMonclick, Cinepulse, etc.) via `providers.json` afin qu'ils soient pilotes a distance depuis le WebPanel.
@@ -68,5 +75,4 @@ GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour recuperer les sources DooPlay quand `dtAjax` n'est pas expose.
 - Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
-
 
