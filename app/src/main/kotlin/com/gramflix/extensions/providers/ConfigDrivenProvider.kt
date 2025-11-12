@@ -507,6 +507,33 @@ class ConfigDrivenProvider : MainAPI() {
         return sections
     }
 
+    private suspend fun fetchCoflixHome(meta: ProviderMeta): List<HomePageList> {
+        val sections = mutableListOf<HomePageList>()
+        val endpoints = listOf(
+            Triple("Films populaires", "/movie/popular", TvType.Movie),
+            Triple("Top films", "/movie/top_rated", TvType.Movie),
+            Triple("Sorties à venir", "/movie/upcoming", TvType.Movie),
+            Triple("Séries populaires", "/tv/popular", TvType.TvSeries),
+            Triple("Top séries", "/tv/top_rated", TvType.TvSeries)
+        )
+        for ((label, path, tvType) in endpoints) {
+            val json = tmdbGet(path) ?: continue
+            val typeSlug = if (path.contains("/tv/")) "tv" else "movie"
+            val entries = buildNebryxResponses(
+                meta = meta,
+                array = json.optJSONArray("results"),
+                limit = 20,
+                includeProvider = true,
+                type = typeSlug,
+                tvType = tvType
+            )
+            if (entries.isNotEmpty()) {
+                sections += HomePageList("${meta.displayName} - $label", entries)
+            }
+        }
+        return sections
+    }
+
     private suspend fun buildNebryxEpisodes(tmdbId: Int, seasons: JSONArray?): List<Episode> {
         if (seasons == null || seasons.length() == 0) return emptyList()
         val episodes = mutableListOf<Episode>()
@@ -648,6 +675,9 @@ class ConfigDrivenProvider : MainAPI() {
 
     private fun nebryxBaseUrl(): String =
         RemoteConfig.getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE) ?: DEFAULT_NEBRYX_BASE
+
+    private fun isCoflix(meta: ProviderMeta?): Boolean =
+        meta?.slug?.equals("coflix", ignoreCase = true) == true
 
     private fun buildNebryxUrl(type: String, tmdbId: Int, season: Int? = null, episode: Int? = null): String {
         val base = "${NEBRYX_SCHEME}${type.lowercase(Locale.ROOT)}/$tmdbId"
@@ -1904,6 +1934,13 @@ class ConfigDrivenProvider : MainAPI() {
                 val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
                 if (apiSections.isNotEmpty()) {
                     lists.addAll(apiSections)
+                    handled = true
+                }
+            }
+            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
+                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
+                if (coflixLists.isNotEmpty()) {
+                    lists.addAll(coflixLists)
                     handled = true
                 }
             }

@@ -1,4 +1,10 @@
-﻿GramFlix v1.4.17
+﻿GramFlix v1.4.18
+----------------
+
+- Corrige l'accueil Coflix en générant ses sections populaires via l'API TMDB (au lieu du contenu marketing) pour présenter de vrais films/séries dans Cloudstream.
+- Build : `:app:make` (plugin version 23, artefact 96417 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 régénérés.)
+
+GramFlix v1.4.17
 ----------------
 
 - Normalise les motifs des hosters décrits dans hosters.json (ajout des prefixes https://, suffixes /*, domaines multiples compatibles et pattern Kodi) pour que ConfigDrivenProvider détecte toujours les bons hôtes et que le WebPanel + l'asset embarqué restent synchronisés.
@@ -137,6 +143,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 
