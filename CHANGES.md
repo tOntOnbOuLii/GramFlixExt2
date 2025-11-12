@@ -1,4 +1,9 @@
-﻿GramFlix v1.4.19
+﻿GramFlix v1.4.20
+----------------
+
+- Corrige les liens Nebryx en encodant Home et recherche via TMDB : Cloudstream reçoit des chargements `nebryx://...` purs (plus de `webpanel.invalid/...`) et peut lancer `avatar`/autres titres sans erreur de lecture.
+- Build : `:app:make` (plugin version 25, artefact 96844 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+GramFlix v1.4.19
 ----------------
 
 - Corrige l'accueil et la recherche Coflix par TMDB (sections populaires + `search`) pour fournir de vrais films/séries dans Cloudstream et rendre `avatar` accessible.
@@ -148,6 +153,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 
