@@ -2,7 +2,7 @@
   {
     "name": "GramFlix All-in-One",
     "internalName": "GramflixExtensions",
-    "version": 21,
+    "version": 22,
     "apiVersion": 1,
     "status": 1,
     "url": "https://github.com/tOntOnbOuLii/GramFlixExt2/releases/latest/download/gramflix-all.cs3",
@@ -15,7 +15,6 @@
     "fileSize": 95654
   }
 ]
-
 
 
 

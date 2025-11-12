@@ -1,10 +1,16 @@
+﻿GramFlix v1.4.17
+----------------
+
+- Normalise les motifs des hosters décrits dans hosters.json (ajout des prefixes https://, suffixes /*, domaines multiples compatibles et pattern Kodi) pour que ConfigDrivenProvider détecte toujours les bons hôtes et que le WebPanel + l'asset embarqué restent synchronisés.
+- Build : `:app:make` (plugin version 22, artefact 95654 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 régénérés).
+
 GramFlix v1.4.16
 ----------------
 
-- Refond les règles DLE (CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss, PapaduStream) pour appeler directement `index.php?do=search` et extraire les cartes `.poster/.short-*`, ce qui restaure les grilles complètes et les résumés sur CloudStream.
-- Met à jour les URLs distantes de Cinepulse (`cinepulse.homes`) et CoFliX (`coflix.io`) dans toutes les configs (app + tafili + sites) afin que la recherche et l'accueil basculent instantanément sur les miroirs actifs.
-- Ajoute un renommage des hosters côté `ConfigDrivenProvider` afin d'afficher les labels normalisés issus de `hosters.json` plutôt que les noms techniques des extracteurs CloudStream.
-- Build : `:app:make` (plugin version 21, artefact 95 654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Refond les rÃ¨gles DLE (CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss, PapaduStream) pour appeler directement `index.php?do=search` et extraire les cartes `.poster/.short-*`, ce qui restaure les grilles complÃ¨tes et les rÃ©sumÃ©s sur CloudStream.
+- Met Ã  jour les URLs distantes de Cinepulse (`cinepulse.homes`) et CoFliX (`coflix.io`) dans toutes les configs (app + tafili + sites) afin que la recherche et l'accueil basculent instantanÃ©ment sur les miroirs actifs.
+- Ajoute un renommage des hosters cÃ´tÃ© `ConfigDrivenProvider` afin d'afficher les labels normalisÃ©s issus de `hosters.json` plutÃ´t que les noms techniques des extracteurs CloudStream.
+- Build : `:app:make` (plugin version 21, artefact 95â€¯654â€¯octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.15
 ----------------
@@ -23,8 +29,8 @@ GramFlix v1.4.14
 GramFlix v1.4.13
 ----------------
 
-- Déchiffre et exploite le player `dismoiceline.uns.bio` (Vidstack) pour récupérer les flux HLS/MP4 et les sous-titres.
-- Ajoute l’injection automatique des sous-titres UnsBio lors de la chargement des liens Cloudstream.
+- DÃ©chiffre et exploite le player `dismoiceline.uns.bio` (Vidstack) pour rÃ©cupÃ©rer les flux HLS/MP4 et les sous-titres.
+- Ajoute lâ€™injection automatique des sous-titres UnsBio lors de la chargement des liens Cloudstream.
 - Rebuilt package (`:app:make`, artefact 68128 octets, plugin version 18).
 
 GramFlix v1.4.12
@@ -131,4 +137,6 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
+
 
