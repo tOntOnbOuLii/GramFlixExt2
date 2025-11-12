@@ -1,3 +1,8 @@
+GramFlix v1.4.17
+
+- Normalise les motifs des hosters exposés dans `hosters.json` (schemes `https://`, suffixes `/*`, domaines multiples et pattern Kodi) pour que la détection de `ConfigDrivenProvider` et les labels Cloudstream restent cohérents, et synchronise la version panel/asset embarquée.
+- Build : `:app:make` (plugin version 22, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.16
 
 - DLE : CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss et PapaduStream s'appuient désormais sur `index.php?do=search&story=...` avec des sélecteurs `.poster/.short-*`, ce qui rétablit les listes complètes (films + séries) et les synopsis dans Cloudstream.
@@ -75,4 +80,3 @@ GramFlix v1.4.4
 
 - Fallback automatique vers `/wp-admin/admin-ajax.php` pour recuperer les sources DooPlay quand `dtAjax` n'est pas expose.
 - Build : `:app:make` (plugin version 9, artefact 56947 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
-
