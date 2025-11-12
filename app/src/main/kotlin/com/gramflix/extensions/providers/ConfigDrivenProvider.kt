@@ -1723,9 +1723,14 @@ class ConfigDrivenProvider : MainAPI() {
             TvType.TvSeries -> TvType.TvSeries
             else -> TvType.Movie
         }
+        val finalUrl = if (meta.slug.equals(NEBRYX_SLUG, ignoreCase = true)) {
+            encodeLoadData(url, meta.slug)
+        } else {
+            url
+        }
         val response = when (resolvedType) {
-            TvType.TvSeries, TvType.Anime -> newTvSeriesSearchResponse(displayTitle, url, resolvedType)
-            else -> newMovieSearchResponse(displayTitle, url, resolvedType)
+            TvType.TvSeries, TvType.Anime -> newTvSeriesSearchResponse(displayTitle, finalUrl, resolvedType)
+            else -> newMovieSearchResponse(displayTitle, finalUrl, resolvedType)
         }
         if (!poster.isNullOrBlank()) {
             response.posterUrl = poster
