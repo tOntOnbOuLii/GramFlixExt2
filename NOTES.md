@@ -15,3 +15,4 @@
 - Pour demain : repasser un test complet dans Cloudstream (accueil + recherche + lecture) et, si tout est bon, finaliser la synchro webpanel/FTP.
 [2025-11-12 21:45] Release v1.4.16 publiée (tag, notes, gramflix-all/1jour1film.cs3 attachés). Rien touché sur tafili.fr : les fichiers locaux restent à uploader manuellement si besoin.
 [2025-11-12 22:10] Release v1.4.17 assemblee (hosters normalises, plugin version 22, gramflix-all.cs3 et gramflix-1jour1film.cs3 regeneres).
+[2025-11-12 22:45] Release v1.4.18 publiÃ©e (accueil Coflix TMDB, plugin version 23, gramflix-all.cs3 et gramflix-1jour1film.cs3 reconstruits).

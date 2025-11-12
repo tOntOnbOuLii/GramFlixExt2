@@ -1,3 +1,8 @@
+GramFlix v1.4.18
+
+- Corrige l’accueil Coflix en composant les sections populaires et top via TMDB au lieu de parser la page marketing, ce qui expose des films/séries récents plutôt que des genres.
+- Build : `:app:make` (plugin version 23, artefact 96417 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.17
 
 - Normalise les motifs des hosters exposés dans `hosters.json` (schemes `https://`, suffixes `/*`, domaines multiples et pattern Kodi) pour que la détection de `ConfigDrivenProvider` et les labels Cloudstream restent cohérents, et synchronise la version panel/asset embarquée.
