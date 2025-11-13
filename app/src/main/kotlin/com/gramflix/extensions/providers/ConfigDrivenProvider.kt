@@ -2127,15 +2127,25 @@ class ConfigDrivenProvider : MainAPI() {
         return runCatching {
             val obj = JSONObject(data)
             val targetUrl = obj.optString("url").takeIf { it.isNotBlank() } ?: data
+            val normalizedUrl = normalizeWebpanelUrl(targetUrl)
             val slug = obj.optString("slug").takeIf { it.isNotBlank() }
             val imdb = obj.optString("imdbId").takeIf { it.isNotBlank() }
             val title = obj.optString("title").takeIf { it.isNotBlank() }
             val poster = obj.optString("poster").takeIf { it.isNotBlank() }
             val yearValue = obj.optInt("year")
             val year = if (obj.has("year") && yearValue > 0) yearValue else null
-            LoadData(targetUrl, slug, imdb, title, poster, year)
+            LoadData(normalizedUrl, slug, imdb, title, poster, year)
         }.getOrElse {
-            LoadData(data, null, null, null, null, null)
+            LoadData(normalizeWebpanelUrl(data), null, null, null, null, null)
+        }
+    }
+
+    private fun normalizeWebpanelUrl(url: String): String {
+        val prefix = "https://webpanel.invalid/"
+        return if (url.startsWith(prefix, ignoreCase = true)) {
+            url.substring(prefix.length)
+        } else {
+            url
         }
     }
 
