@@ -1,7 +1,9 @@
-GramFlix v1.4.20
+GramFlix v1.4.21
 
-- Corrige les liens Nebryx : les sections Home + les résultats de recherche codent leurs données via TMDB, ce qui empêche Cloudstream de préfixer `webpanel.invalid` et permet de lancer `nebryx://...` (ex. `avatar`) sans erreur.
-- Build : `:app:make` (plugin version 25, artefact 96844 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Assure la normalisation des liens `webpanel.invalid` en les nettoyant (`normalizeWebpanelUrl`) au moment du chargement pour que Nebryx ouvre toujours des URI `nebryx://` même si Cloudstream ne l’avait pas encodé.
+- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
+GramFlix v1.4.20
 
 GramFlix v1.4.19
 

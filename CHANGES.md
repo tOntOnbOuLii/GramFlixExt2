@@ -1,4 +1,9 @@
-﻿GramFlix v1.4.20
+﻿GramFlix v1.4.21
+----------------
+
+- Normalise les URL `webpanel.invalid` dès le décodage (`normalizeWebpanelUrl`) pour que Nebryx (home + search) utilise toujours `nebryx://` et ne lance plus d’appel HTTP vers `webpanel.invalid`.
+- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+GramFlix v1.4.20
 ----------------
 
 - Corrige les liens Nebryx en encodant Home et recherche via TMDB : Cloudstream reçoit des chargements `nebryx://...` purs (plus de `webpanel.invalid/...`) et peut lancer `avatar`/autres titres sans erreur de lecture.
@@ -153,6 +158,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 
