@@ -3,7 +3,7 @@
     "providers": {
         "1jour1film": {
             "name": "1JOUR1FILM",
-            "baseUrl": "https://1jour1film1125.site"
+            "baseUrl": "https://1jour1film1125b.site"
         },
         "animesama": {
             "name": "Anime-Sama",
@@ -27,7 +27,7 @@
         },
         "coflix": {
             "name": "CoFliX",
-            "baseUrl": "https://coflix.boo"
+            "baseUrl": "https://coflix.bet"
         },
         "cpasmal": {
             "name": "CPasMal",
@@ -47,7 +47,7 @@
         },
         "flemmix": {
             "name": "Flemmix",
-            "baseUrl": "https://flemmix.cam"
+            "baseUrl": "https://flemmix.club"
         },
         "frembed": {
             "name": "Frembed",
@@ -55,7 +55,7 @@
         },
         "frenchstream": {
             "name": "French stream",
-            "baseUrl": "https://fs-miroir6.lol"
+            "baseUrl": "https://fs8.lol"
         },
         "frenchtvlive": {
             "name": "French TV LIVE",
@@ -103,7 +103,7 @@
         },
         "senpaistream": {
             "name": "Senpai-Stream",
-            "baseUrl": "https://senpai-stream.fun"
+            "baseUrl": "https://senpai-stream.bio"
         },
         "stream4free": {
             "name": "Stream 4 Free",
@@ -115,11 +115,11 @@
         },
         "wookafr": {
             "name": "WookaFR",
-            "baseUrl": "https://wookafr.boo/"
+            "baseUrl": "https://wookafr.boo"
         },
         "wowfilms": {
             "name": "WoW-Films",
-            "baseUrl": "https://wowfilms1125.site"
+            "baseUrl": "https://wowfilms1125b.site"
         },
         "xalaflix": {
             "name": "XalaFlix",
