@@ -39,11 +39,11 @@
         },
         "fanstream": {
             "name": "Fanstream",
-            "baseUrl": "https://fanstream.cfd"
+            "baseUrl": "https://fanstream.mom"
         },
         "filmoflix": {
             "name": "FilmoFlix",
-            "baseUrl": "https://filmoflix.party"
+            "baseUrl": "https://filmoflix.studio"
         },
         "flemmix": {
             "name": "Flemmix",
@@ -51,7 +51,7 @@
         },
         "frembed": {
             "name": "Frembed",
-            "baseUrl": "https://frembed.cfd"
+            "baseUrl": "https://frembed.my"
         },
         "frenchstream": {
             "name": "French stream",
@@ -87,7 +87,7 @@
         },
         "papadustream": {
             "name": "PapaduStream",
-            "baseUrl": "https://papadustream.horse"
+            "baseUrl": "https://papadustream.garden"
         },
         "purstream": {
             "name": "Purstream",
