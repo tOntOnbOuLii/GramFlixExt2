@@ -2141,12 +2141,16 @@ class ConfigDrivenProvider : MainAPI() {
     }
 
     private fun normalizeWebpanelUrl(url: String): String {
-        val prefix = "https://webpanel.invalid/"
-        return if (url.startsWith(prefix, ignoreCase = true)) {
-            url.substring(prefix.length)
-        } else {
-            url
-        }
+        val webpanelPrefixes = listOf(
+            "https://webpanel.invalid",
+            "http://webpanel.invalid",
+            "webpanel.invalid"
+        )
+        val matchedPrefix = webpanelPrefixes.firstOrNull { url.startsWith(it, ignoreCase = true) }
+            ?: return url
+        val trimmed = url.substring(matchedPrefix.length)
+        val normalized = trimmed.removePrefix("/")
+        return normalized.ifBlank { url }
     }
 
     private fun sanitizeHtmlText(html: String?): String? {
