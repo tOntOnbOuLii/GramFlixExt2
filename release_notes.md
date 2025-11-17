@@ -1,3 +1,8 @@
+GramFlix v1.4.23
+
+- Corrige Nebryx et Coflix : l’accueil reste local, Coflix conserve ses URLs dédiées, et Nebryx charge la page `watch.html` (pas de JSON affiché) via la même release.
+- Build : `:app:make` (plugin version 29, artefact 98 179 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.22
 
 - Réécrit tous les liens Nebryx envoyés à Cloudstream pour qu’ils pointent vers `https://nebryx.fr/watch.html?...`, ce qui empêche l’ouverture de `webpanel.invalid` et lance directement la page officielle.
