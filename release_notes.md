@@ -1,8 +1,8 @@
+GramFlix v1.4.25
+
+- Reprend toutes les URLs (1J1F, Coflix, Nebryx, etc.) et génère les builds `.cs3` v31 afin que chaque provider ouvre sa propre page sans afficher de JSON.
+
 GramFlix v1.4.24
-
-- Stabilise les URLs des providers (notamment Coflix) tout en ouvrant Nebryx sur `watch.html` sans exposer le JSON, et rebuild v30 des `.cs3`.
-
-GramFlix v1.4.23
 
 - Corrige Nebryx et Coflix : l’accueil reste local, Coflix conserve ses URLs dédiées, et Nebryx charge la page `watch.html` (pas de JSON affiché) via la même release.
 - Build : `:app:make` (plugin version 29, artefact 98 179 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).

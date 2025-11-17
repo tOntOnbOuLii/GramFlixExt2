@@ -25,3 +25,4 @@
 
 [2025-11-17 18:45] Release v1.4.23 publiée (Coflix isolé, Nebryx watch.html, plugin 29, gramflix-all.cs3 & gramflix-1jour1film.cs3).
 [2025-11-17 19:00] Release v1.4.24 publiée (Coflix/Nebryx stabilisés, plugin 30, gramflix-all.cs3 & gramflix-1jour1film.cs3).
+[2025-11-17 19:15] Release v1.4.25 préparée (liens 1J1F/Coflix stabilisés, plugin 31).
