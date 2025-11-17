@@ -1,37 +1,42 @@
-﻿GramFlix v1.4.21
+GramFlix v1.4.22
 ----------------
 
-- Normalise les URL `webpanel.invalid` dès le décodage (`normalizeWebpanelUrl`) pour que Nebryx (home + search) utilise toujours `nebryx://` et ne lance plus d’appel HTTP vers `webpanel.invalid`.
-- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Remplace d�finitivement tous les liens Nebryx par `https://nebryx.fr/watch.html?...` d�s la recherche/l�accueil afin que Cloudstream ouvre la page officielle (plus de `webpanel.invalid/nebryx://...`).
+- Build : `:app:make` (plugin version 28, artefact 98?145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` r�g�n�r�s).
+GramFlix v1.4.21
+----------------
+
+- Normalise les URL `webpanel.invalid` d�s le d�codage (`normalizeWebpanelUrl`) pour que Nebryx (home + search) utilise toujours `nebryx://` et ne lance plus d�appel HTTP vers `webpanel.invalid`.
+- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` r�g�n�r�s).
 GramFlix v1.4.20
 ----------------
 
-- Corrige les liens Nebryx en encodant Home et recherche via TMDB : Cloudstream reçoit des chargements `nebryx://...` purs (plus de `webpanel.invalid/...`) et peut lancer `avatar`/autres titres sans erreur de lecture.
-- Build : `:app:make` (plugin version 25, artefact 96844 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Corrige les liens Nebryx en encodant Home et recherche via TMDB : Cloudstream re�oit des chargements `nebryx://...` purs (plus de `webpanel.invalid/...`) et peut lancer `avatar`/autres titres sans erreur de lecture.
+- Build : `:app:make` (plugin version 25, artefact 96844 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` r�g�n�r�s).
 GramFlix v1.4.19
 ----------------
 
-- Corrige l'accueil et la recherche Coflix par TMDB (sections populaires + `search`) pour fournir de vrais films/séries dans Cloudstream et rendre `avatar` accessible.
-- Build : `:app:make` (plugin version 24, artefact 96812 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Corrige l'accueil et la recherche Coflix par TMDB (sections populaires + `search`) pour fournir de vrais films/s�ries dans Cloudstream et rendre `avatar` accessible.
+- Build : `:app:make` (plugin version 24, artefact 96812 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` r�g�n�r�s).
 GramFlix v1.4.18
 ----------------
 
-- Corrige l'accueil Coflix en générant ses sections populaires via l'API TMDB (au lieu du contenu marketing) pour présenter de vrais films/séries dans Cloudstream.
-- Build : `:app:make` (plugin version 23, artefact 96417 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 régénérés.)
+- Corrige l'accueil Coflix en g�n�rant ses sections populaires via l'API TMDB (au lieu du contenu marketing) pour pr�senter de vrais films/s�ries dans Cloudstream.
+- Build : `:app:make` (plugin version 23, artefact 96417 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 r�g�n�r�s.)
 
 GramFlix v1.4.17
 ----------------
 
-- Normalise les motifs des hosters décrits dans hosters.json (ajout des prefixes https://, suffixes /*, domaines multiples compatibles et pattern Kodi) pour que ConfigDrivenProvider détecte toujours les bons hôtes et que le WebPanel + l'asset embarqué restent synchronisés.
-- Build : `:app:make` (plugin version 22, artefact 95654 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 régénérés).
+- Normalise les motifs des hosters d�crits dans hosters.json (ajout des prefixes https://, suffixes /*, domaines multiples compatibles et pattern Kodi) pour que ConfigDrivenProvider d�tecte toujours les bons h�tes et que le WebPanel + l'asset embarqu� restent synchronis�s.
+- Build : `:app:make` (plugin version 22, artefact 95654 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 r�g�n�r�s).
 
 GramFlix v1.4.16
 ----------------
 
-- Refond les rÃ¨gles DLE (CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss, PapaduStream) pour appeler directement `index.php?do=search` et extraire les cartes `.poster/.short-*`, ce qui restaure les grilles complÃ¨tes et les rÃ©sumÃ©s sur CloudStream.
-- Met Ã  jour les URLs distantes de Cinepulse (`cinepulse.homes`) et CoFliX (`coflix.io`) dans toutes les configs (app + tafili + sites) afin que la recherche et l'accueil basculent instantanÃ©ment sur les miroirs actifs.
-- Ajoute un renommage des hosters cÃ´tÃ© `ConfigDrivenProvider` afin d'afficher les labels normalisÃ©s issus de `hosters.json` plutÃ´t que les noms techniques des extracteurs CloudStream.
-- Build : `:app:make` (plugin version 21, artefact 95â€¯654â€¯octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
+- Refond les règles DLE (CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss, PapaduStream) pour appeler directement `index.php?do=search` et extraire les cartes `.poster/.short-*`, ce qui restaure les grilles complètes et les résumés sur CloudStream.
+- Met à jour les URLs distantes de Cinepulse (`cinepulse.homes`) et CoFliX (`coflix.io`) dans toutes les configs (app + tafili + sites) afin que la recherche et l'accueil basculent instantanément sur les miroirs actifs.
+- Ajoute un renommage des hosters côté `ConfigDrivenProvider` afin d'afficher les labels normalisés issus de `hosters.json` plutôt que les noms techniques des extracteurs CloudStream.
+- Build : `:app:make` (plugin version 21, artefact 95 654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
 
 GramFlix v1.4.15
 ----------------
@@ -50,8 +55,8 @@ GramFlix v1.4.14
 GramFlix v1.4.13
 ----------------
 
-- DÃ©chiffre et exploite le player `dismoiceline.uns.bio` (Vidstack) pour rÃ©cupÃ©rer les flux HLS/MP4 et les sous-titres.
-- Ajoute lâ€™injection automatique des sous-titres UnsBio lors de la chargement des liens Cloudstream.
+- Déchiffre et exploite le player `dismoiceline.uns.bio` (Vidstack) pour récupérer les flux HLS/MP4 et les sous-titres.
+- Ajoute l’injection automatique des sous-titres UnsBio lors de la chargement des liens Cloudstream.
 - Rebuilt package (`:app:make`, artefact 68128 octets, plugin version 18).
 
 GramFlix v1.4.12
@@ -158,6 +163,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 

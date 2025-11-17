@@ -1,3 +1,8 @@
+GramFlix v1.4.22
+
+- Réécrit tous les liens Nebryx envoyés à Cloudstream pour qu’ils pointent vers `https://nebryx.fr/watch.html?...`, ce qui empêche l’ouverture de `webpanel.invalid` et lance directement la page officielle.
+- Build : `:app:make` (plugin version 28, artefact 98 145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+
 GramFlix v1.4.21
 
 - Assure la normalisation des liens `webpanel.invalid` en les nettoyant (`normalizeWebpanelUrl`) au moment du chargement pour que Nebryx ouvre toujours des URI `nebryx://` même si Cloudstream ne l’avait pas encodé.
