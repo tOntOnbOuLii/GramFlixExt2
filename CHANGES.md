@@ -1,3 +1,9 @@
+GramFlix v1.4.25
+----------------
+
+- Corrige définitivement les liens 1J1F/Coflix en laissant chaque provider exposer son URL d’origine pendant que Nebryx ouvre la page watch.html, et publie les builds .cs3 v31.
+- Build : :app:make (plugin version 31).
+
 GramFlix v1.4.24
 ----------------
 
@@ -175,6 +181,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 
