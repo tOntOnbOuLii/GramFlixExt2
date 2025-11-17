@@ -1,3 +1,7 @@
+GramFlix v1.4.24
+
+- Stabilise les URLs des providers (notamment Coflix) tout en ouvrant Nebryx sur `watch.html` sans exposer le JSON, et rebuild v30 des `.cs3`.
+
 GramFlix v1.4.23
 
 - Corrige Nebryx et Coflix : l’accueil reste local, Coflix conserve ses URLs dédiées, et Nebryx charge la page `watch.html` (pas de JSON affiché) via la même release.
