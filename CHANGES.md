@@ -1,3 +1,9 @@
+GramFlix v1.4.23
+----------------
+
+- Corrige le cas Coflix (pas de liens Nebryx) et garde l’accueil local tout en ouvrant Nebryx directement sur https://nebryx.fr/watch.html?… sans exposer le JSON.
+- Build : :app:make (plugin version 29, artefact 98?179 octets, gramflix-all.cs3 et gramflix-1jour1film.cs3 régénérés).
+
 GramFlix v1.4.22
 ----------------
 
@@ -163,6 +169,7 @@ Legacy Notes
 - Implemented `RemoteConfig.primeFromAssets` et rendu `refreshFromNetwork` non fatal.
 - Wired `Plugin.load` pour initialiser la config distante.
 - Ajout des fichiers Gradle wrapper et toolchain pour cibler JDK 17 (telechargement automatique).
+
 
 
 
