@@ -7,5 +7,5 @@ plugins {
 
 allprojects {
     group = "com.gramflix"
-    version = 1
+    version = 2
 }

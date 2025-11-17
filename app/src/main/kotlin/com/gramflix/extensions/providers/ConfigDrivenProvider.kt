@@ -734,14 +734,21 @@ class ConfigDrivenProvider : MainAPI() {
         meta?.slug?.equals("coflix", ignoreCase = true) == true
 
     private fun buildNebryxUrl(type: String, tmdbId: Int, season: Int? = null, episode: Int? = null): String {
-        val base = "${NEBRYX_SCHEME}${type.lowercase(Locale.ROOT)}/$tmdbId"
-        if (season != null && episode != null) {
-            return "$base?season=$season&episode=$episode"
-        }
-        return base
+        val base = nebryxBaseUrl().trimEnd('/')
+        val queryParts = mutableListOf(
+            "id=$tmdbId",
+            "type=${type.lowercase(Locale.ROOT)}"
+        )
+        if (season != null) queryParts += "season=$season"
+        if (episode != null) queryParts += "episode=$episode"
+        return "$base/watch.html?${queryParts.joinToString("&")}"
     }
 
     private fun parseNebryxUrl(url: String): NebryxEntry? {
+        return parseNebryxSchemeUrl(url) ?: parseNebryxWatchUrl(url)
+    }
+
+    private fun parseNebryxSchemeUrl(url: String): NebryxEntry? {
         if (!url.startsWith(NEBRYX_SCHEME, ignoreCase = true)) return null
         val uri = runCatching { URI(url) }.getOrNull() ?: return null
         val payload = uri.schemeSpecificPart?.removePrefix("//") ?: uri.schemeSpecificPart ?: return null
@@ -752,23 +759,51 @@ class ConfigDrivenProvider : MainAPI() {
         if (pathParts.size != 2) return null
         val type = pathParts[0].lowercase(Locale.ROOT)
         val id = pathParts[1].toIntOrNull() ?: return null
-        val query = uri.rawQuery.orEmpty()
+        val (season, episode) = extractSeasonEpisodeFromParams(parseQueryParams(uri.rawQuery.orEmpty()))
+        return NebryxEntry(type, id, season, episode)
+    }
+
+    private fun parseNebryxWatchUrl(url: String): NebryxEntry? {
+        val normalizedUrl = url.trim()
+        val baseUrl = nebryxBaseUrl().trimEnd('/')
+        val normalizedBase = baseUrl.lowercase(Locale.ROOT)
+        val lowerUrl = normalizedUrl.lowercase(Locale.ROOT)
+        if (!lowerUrl.startsWith(normalizedBase)) return null
+        val suffix = normalizedUrl.substring(baseUrl.length).removePrefix("/")
+        if (suffix.isBlank()) return null
+        val parts = suffix.split("?", limit = 2)
+        val path = parts.first().lowercase(Locale.ROOT)
+        if (path != "watch.html" && path != "watch") return null
+        val query = parts.getOrNull(1).orEmpty()
+        if (query.isBlank()) return null
+        val params = parseQueryParams(query)
+        val id = params["id"]?.toIntOrNull() ?: return null
+        val type = params["type"]?.takeIf { it.isNotBlank() } ?: return null
+        val (season, episode) = extractSeasonEpisodeFromParams(params)
+        return NebryxEntry(type, id, season, episode)
+    }
+
+    private fun parseQueryParams(query: String): Map<String, String> {
+        if (query.isBlank()) return emptyMap()
+        return query.split("&").mapNotNull { token ->
+            val parts = token.split("=", limit = 2)
+            val key = parts.getOrNull(0)?.lowercase(Locale.ROOT)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val value = parts.getOrNull(1) ?: ""
+            key to value
+        }.toMap()
+    }
+
+    private fun extractSeasonEpisodeFromParams(params: Map<String, String>): Pair<Int?, Int?> {
         var season: Int? = null
         var episode: Int? = null
-        if (query.isNotBlank()) {
-            query.split("&").forEach { token ->
-                val kv = token.split("=")
-                if (kv.size == 2) {
-                    val key = kv[0].lowercase(Locale.ROOT)
-                    val value = kv[1].toIntOrNull()
-                    when (key) {
-                        "season", "sa" -> season = value
-                        "episode", "ep", "epi" -> episode = value
-                    }
-                }
+        for ((key, value) in params) {
+            val parsed = value.toIntOrNull()
+            when (key) {
+                "season", "sa" -> season = parsed
+                "episode", "ep", "epi" -> episode = parsed
             }
         }
-        return NebryxEntry(type, id, season, episode)
+        return season to episode
     }
 
     private fun normalizeHost(url: String): String? {
@@ -2236,7 +2271,7 @@ class ConfigDrivenProvider : MainAPI() {
                     item.year?.let { year = it }
                 }
             }
-            if (url.startsWith(NEBRYX_SCHEME, ignoreCase = true)) {
+            if (parseNebryxUrl(url) != null) {
                 return loadNebryx(url)
             }
             ensureRemoteConfigs()
@@ -2298,7 +2333,7 @@ class ConfigDrivenProvider : MainAPI() {
                     true
                 }.getOrElse { false }
             }
-            if (pageUrl.startsWith(NEBRYX_SCHEME, ignoreCase = true) || isNebryxSlug(loadData.slug)) {
+            if (parseNebryxUrl(pageUrl) != null || isNebryxSlug(loadData.slug)) {
                 return loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
             }
             ensureRemoteConfigs()
