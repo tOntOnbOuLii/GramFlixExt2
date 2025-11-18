@@ -1,21 +1,24 @@
+﻿GramFlix v1.4.26
+
+- Corrige les liens Nebryx en pointant vers l'API `frembed.my/api/...` pour que Cloudstream retrouve les serveurs (Voe, Dood, Netu, Uqload) et liste les sources sans afficher "aucun lien trouvé".
+- Build : `:app:make` (plugin version 32)
+
 GramFlix v1.4.25
 
-- Reprend toutes les URLs (1J1F, Coflix, Nebryx, etc.) et génère les builds `.cs3` v31 afin que chaque provider ouvre sa propre page sans afficher de JSON.
+- Reprend toutes les URLs (1J1F, Coflix, Nebryx, etc.) et gÃ©nÃ¨re les builds `.cs3` v31 afin que chaque provider ouvre sa propre page sans afficher de JSON.
 
 GramFlix v1.4.24
 
-- Corrige Nebryx et Coflix : l’accueil reste local, Coflix conserve ses URLs dédiées, et Nebryx charge la page `watch.html` (pas de JSON affiché) via la même release.
-- Build : `:app:make` (plugin version 29, artefact 98 179 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Corrige Nebryx et Coflix : lâ€™accueil reste local, Coflix conserve ses URLs dÃ©diÃ©es, et Nebryx charge la page `watch.html` (pas de JSON affichÃ©) via la mÃªme release.
+- Build : `:app:make` (plugin version 29, artefact 98 179 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.22
 
-- Réécrit tous les liens Nebryx envoyés à Cloudstream pour qu’ils pointent vers `https://nebryx.fr/watch.html?...`, ce qui empêche l’ouverture de `webpanel.invalid` et lance directement la page officielle.
-- Build : `:app:make` (plugin version 28, artefact 98 145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Build : `:app:make` (plugin version 28, artefact 98 145 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.21
 
-- Assure la normalisation des liens `webpanel.invalid` en les nettoyant (`normalizeWebpanelUrl`) au moment du chargement pour que Nebryx ouvre toujours des URI `nebryx://` même si Cloudstream ne l’avait pas encodé.
-- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Build : `:app:make` (plugin version 26, artefact 96976 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.20
 
@@ -23,15 +26,15 @@ GramFlix v1.4.19
 
 GramFlix v1.4.17
 
-- Normalise les motifs des hosters exposés dans `hosters.json` (schemes `https://`, suffixes `/*`, domaines multiples et pattern Kodi) pour que la détection de `ConfigDrivenProvider` et les labels Cloudstream restent cohérents, et synchronise la version panel/asset embarquée.
-- Build : `:app:make` (plugin version 22, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Normalise les motifs des hosters exposÃ©s dans `hosters.json` (schemes `https://`, suffixes `/*`, domaines multiples et pattern Kodi) pour que la dÃ©tection de `ConfigDrivenProvider` et les labels Cloudstream restent cohÃ©rents, et synchronise la version panel/asset embarquÃ©e.
+- Build : `:app:make` (plugin version 22, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.16
 
-- DLE : CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss et PapaduStream s'appuient désormais sur `index.php?do=search&story=...` avec des sélecteurs `.poster/.short-*`, ce qui rétablit les listes complètes (films + séries) et les synopsis dans Cloudstream.
+- DLE : CinePlateforme, CPasMal, DirectFR, Fanstream, FilmoFlix, Flemmix, HDss et PapaduStream s'appuient dÃ©sormais sur `index.php?do=search&story=...` avec des sÃ©lecteurs `.poster/.short-*`, ce qui rÃ©tablit les listes complÃ¨tes (films + sÃ©ries) et les synopsis dans Cloudstream.
 - Remote config : Cinepulse pointe sur `https://cinepulse.homes` et CoFliX sur `https://coflix.io` (app/assets + tafili + sites) pour suivre les miroirs actifs.
-- Provider runtime : le wrapper `wrapCallbackWithHosters` renomme les links avec les labels issus de `hosters.json`, ce qui évite les noms d'extracteurs obscurs dans la UI.
-- Build : `:app:make` (plugin version 21, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` régénérés).
+- Provider runtime : le wrapper `wrapCallbackWithHosters` renomme les links avec les labels issus de `hosters.json`, ce qui Ã©vite les noms d'extracteurs obscurs dans la UI.
+- Build : `:app:make` (plugin version 21, artefact 95654 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` rÃ©gÃ©nÃ©rÃ©s).
 
 GramFlix v1.4.15
 
@@ -47,8 +50,8 @@ GramFlix v1.4.14
 
 GramFlix v1.4.13
 
-- Déchiffre les payloads `dismoiceline.uns.bio` (AES/CBC) afin d'exposer les flux HLS/MP4 et sous-titres directement dans Cloudstream.
-- Ajoute la détection automatique des iframes UnsBio lors du chargement des liens.
+- DÃ©chiffre les payloads `dismoiceline.uns.bio` (AES/CBC) afin d'exposer les flux HLS/MP4 et sous-titres directement dans Cloudstream.
+- Ajoute la dÃ©tection automatique des iframes UnsBio lors du chargement des liens.
 - Build : `:app:make` (plugin version 18, artefact 68128 octets, `gramflix-all.cs3` et `gramflix-1jour1film.cs3` regeneres).
 
 GramFlix v1.4.12

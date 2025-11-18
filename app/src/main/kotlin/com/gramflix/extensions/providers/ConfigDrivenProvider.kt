@@ -152,6 +152,8 @@ class ConfigDrivenProvider : MainAPI() {
         private const val TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
         private const val TMDB_DEFAULT_LANGUAGE = "fr-FR"
         private const val DEFAULT_NEBRYX_BASE = "https://nebryx.fr"
+        private const val FREMBED_SLUG = "frembed"
+        private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
     }
 
@@ -681,9 +683,10 @@ class ConfigDrivenProvider : MainAPI() {
     ): Boolean {
         val entry = parseNebryxUrl(data.url) ?: return false
         val referer = nebryxBaseUrl()
+        val embedBase = frembedBaseUrl()
         return when (entry.type) {
             "movie" -> {
-                val embedUrl = "https://frembed.mom/api/film.php?id=${entry.tmdbId}"
+                val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
                 runCatching {
                     loadExtractor(embedUrl, referer, subtitleCallback, callback)
                     true
@@ -692,7 +695,7 @@ class ConfigDrivenProvider : MainAPI() {
             "tv" -> {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
-                val embedUrl = "https://frembed.mom/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
+                val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
                 runCatching {
                     loadExtractor(embedUrl, referer, subtitleCallback, callback)
                     true
@@ -729,6 +732,9 @@ class ConfigDrivenProvider : MainAPI() {
 
     private fun nebryxBaseUrl(): String =
         RemoteConfig.getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE) ?: DEFAULT_NEBRYX_BASE
+
+    private fun frembedBaseUrl(): String =
+        RemoteConfig.getProviderBaseUrlOrNull(FREMBED_SLUG, DEFAULT_FREMBED_BASE)?.trimEnd('/') ?: DEFAULT_FREMBED_BASE
 
     private fun isCoflix(meta: ProviderMeta?): Boolean =
         meta?.slug?.equals("coflix", ignoreCase = true) == true
