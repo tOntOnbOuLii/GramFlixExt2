@@ -687,8 +687,9 @@ class ConfigDrivenProvider : MainAPI() {
         return when (entry.type) {
             "movie" -> {
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
+                val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
                 runCatching {
-                    loadExtractor(embedUrl, referer, subtitleCallback, callback)
+                    loadExtractor(playerUrl, embedUrl, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
             }
@@ -696,13 +697,23 @@ class ConfigDrivenProvider : MainAPI() {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
+                val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
                 runCatching {
-                    loadExtractor(embedUrl, referer, subtitleCallback, callback)
+                    loadExtractor(playerUrl, embedUrl, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
             }
             else -> false
         }
+    }
+
+    private suspend fun resolveFrembedPlayerUrl(embedUrl: String, referer: String): String {
+        return runCatching {
+            val response = fetchHtml(embedUrl, referer = referer)
+            val iframe = response.document.selectFirst("iframe#player, iframe[src]")
+            val resolved = iframe?.absUrl("src")?.takeIf { it.isNotBlank() }
+            resolved ?: embedUrl
+        }.getOrDefault(embedUrl)
     }
 
     private fun gatherProviders(): List<ProviderMeta> {
