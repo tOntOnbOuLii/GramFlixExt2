@@ -682,7 +682,7 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val entry = parseNebryxUrl(data.url) ?: return false
-        val referer = nebryxBaseUrl()
+        val referer = data.url.takeIf { it.isNotBlank() } ?: nebryxBaseUrl()
         val embedBase = frembedBaseUrl()
         return when (entry.type) {
             "movie" -> {
