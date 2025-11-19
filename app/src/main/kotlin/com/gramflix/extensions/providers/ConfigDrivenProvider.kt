@@ -103,6 +103,11 @@ class ConfigDrivenProvider : MainAPI() {
         val score: Int
     )
 
+    private data class HomeCacheEntry(
+        val timestamp: Long,
+        val sections: List<HomePageList>
+    )
+
     private data class AjaxRequest(
         val url: String,
         val referer: String
@@ -154,6 +159,8 @@ class ConfigDrivenProvider : MainAPI() {
         private const val DEFAULT_NEBRYX_BASE = "https://nebryx.fr"
         private const val FREMBED_SLUG = "frembed"
         private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
+        private const val HOME_CACHE_TTL_MS = 2 * 60 * 1000L
+        private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
     }
 
@@ -303,6 +310,11 @@ class ConfigDrivenProvider : MainAPI() {
     private val fallbackCache = object : LinkedHashMap<String, ImdbItem>(128, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImdbItem>?): Boolean = size > 256
     }
+    private val homeCacheLock = Any()
+    private val homeCache = object : LinkedHashMap<String, HomeCacheEntry>(HOME_CACHE_MAX_ENTRIES, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, HomeCacheEntry>?): Boolean =
+            size > HOME_CACHE_MAX_ENTRIES
+    }
 
     private fun canonicalizeUrl(url: String): String = url.trim().trimEnd('/')
 
@@ -320,6 +332,24 @@ class ConfigDrivenProvider : MainAPI() {
         val normalized = canonicalizeUrl(url)
         synchronized(urlSlugLock) {
             return urlSlugCache[url] ?: urlSlugCache[normalized]
+        }
+    }
+
+    private fun getCachedHomeLists(slug: String): List<HomePageList>? {
+        synchronized(homeCacheLock) {
+            val entry = homeCache[slug] ?: return null
+            if (System.currentTimeMillis() - entry.timestamp > HOME_CACHE_TTL_MS) {
+                homeCache.remove(slug)
+                return null
+            }
+            return entry.sections
+        }
+    }
+
+    private fun cacheHomeLists(slug: String, sections: List<HomePageList>) {
+        if (sections.isEmpty()) return
+        synchronized(homeCacheLock) {
+            homeCache[slug] = HomeCacheEntry(System.currentTimeMillis(), sections)
         }
     }
 
@@ -741,8 +771,20 @@ class ConfigDrivenProvider : MainAPI() {
     private fun isNebryxSlug(slug: String?): Boolean =
         slug?.equals(NEBRYX_SLUG, ignoreCase = true) == true
 
-    private fun nebryxBaseUrl(): String =
-        RemoteConfig.getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE) ?: DEFAULT_NEBRYX_BASE
+    private fun nebryxBaseUrl(): String {
+        val candidate = RemoteConfig
+            .getProviderBaseUrlOrNull(NEBRYX_SLUG, DEFAULT_NEBRYX_BASE)
+            ?.trim()
+            ?.trimEnd('/')
+            ?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_NEBRYX_BASE
+        val sanitized = candidate.lowercase(Locale.ROOT)
+        return if (sanitized.contains("webpanel.invalid") || sanitized.startsWith("nebryx://")) {
+            DEFAULT_NEBRYX_BASE
+        } else {
+            candidate
+        }
+    }
 
     private fun frembedBaseUrl(): String =
         RemoteConfig.getProviderBaseUrlOrNull(FREMBED_SLUG, DEFAULT_FREMBED_BASE)?.trimEnd('/') ?: DEFAULT_FREMBED_BASE
@@ -2035,6 +2077,20 @@ class ConfigDrivenProvider : MainAPI() {
         lists: MutableList<HomePageList>
     ): Boolean {
         val rule = meta.rule
+        val cached = getCachedHomeLists(meta.slug)
+        if (cached != null) {
+            lists += cached
+            return true
+        }
+        val beforeSize = lists.size
+        fun finalizeWithCache(): Boolean {
+            val added = if (lists.size > beforeSize) lists.subList(beforeSize, lists.size).toList() else emptyList()
+            if (added.isNotEmpty()) {
+                cacheHomeLists(meta.slug, added)
+                return true
+            }
+            return false
+        }
         return try {
             val dedupe = hashSetOf<String>()
             var handled = false
@@ -2059,7 +2115,7 @@ class ConfigDrivenProvider : MainAPI() {
                     handled = true
                 }
             }
-            if (handled) return true
+            if (handled) return finalizeWithCache()
             val effectiveRule = rule ?: return false
             val response = fetchHtml(meta.baseUrl, referer = null)
             val doc = response.document
@@ -2067,13 +2123,13 @@ class ConfigDrivenProvider : MainAPI() {
             val responses = items.map { it.response }
             if (responses.isNotEmpty()) {
                 lists += HomePageList(meta.displayName, responses)
-                return true
+                return finalizeWithCache()
             }
             if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
                 val fallbackSections = extractOneJourHome(meta, doc, dedupe)
                 if (fallbackSections.isNotEmpty()) {
                     lists.addAll(fallbackSections)
-                    return true
+                    return finalizeWithCache()
                 }
             }
             false
