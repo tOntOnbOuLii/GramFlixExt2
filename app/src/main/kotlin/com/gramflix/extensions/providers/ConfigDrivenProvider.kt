@@ -2447,7 +2447,8 @@ class ConfigDrivenProvider : MainAPI() {
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
             if (parseNebryxUrl(pageUrl) != null || isNebryxSlug(loadData.slug)) {
-                return loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
+                val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
+                if (ok) return true
             }
             if (!imdbId.isNullOrBlank()) {
                 val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdbId"
