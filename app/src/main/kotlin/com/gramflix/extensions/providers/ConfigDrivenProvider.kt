@@ -765,6 +765,15 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private suspend fun resolveImdbFromNebryx(entry: NebryxEntry): String? {
+        val path = when (entry.type.lowercase(Locale.ROOT)) {
+            "tv" -> "/tv/${entry.tmdbId}"
+            else -> "/movie/${entry.tmdbId}"
+        }
+        val json = tmdbGet(path) ?: return null
+        return json.optString("imdb_id").takeIf { it.isNotBlank() }
+    }
+
     private suspend fun resolveFrembedPlayerUrl(embedUrl: String, referer: String): String {
         return runCatching {
             val response = fetchHtml(embedUrl, referer = referer)
@@ -2455,16 +2464,22 @@ class ConfigDrivenProvider : MainAPI() {
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
-            if (parseNebryxUrl(pageUrl) != null || isNebryxSlug(loadData.slug)) {
+            val nebryxEntry = parseNebryxUrl(pageUrl)
+            if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
                 if (ok) return true
             }
-            if (!imdbId.isNullOrBlank()) {
-                val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdbId"
-                return runCatching {
+            var imdb = imdbId
+            if (imdb.isNullOrBlank() && nebryxEntry != null) {
+                imdb = resolveImdbFromNebryx(nebryxEntry)
+            }
+            if (!imdb.isNullOrBlank()) {
+                val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdb"
+                val ok = runCatching {
                     loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, hosterAwareCallback)
                     true
                 }.getOrElse { false }
+                if (ok) return true
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
