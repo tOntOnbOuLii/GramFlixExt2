@@ -733,13 +733,22 @@ class ConfigDrivenProvider : MainAPI() {
         val entry = parseNebryxUrl(data.url) ?: return false
         val referer = data.url.takeIf { it.isNotBlank() } ?: nebryxBaseUrl()
         val embedBase = frembedBaseUrl()
+        var emitted = false
+        val countingCallback: (ExtractorLink) -> Unit = { link ->
+            emitted = true
+            callback(link)
+        }
+        val countingSubtitle: (SubtitleFile) -> Unit = { sub ->
+            emitted = true
+            subtitleCallback(sub)
+        }
         return when (entry.type) {
             "movie" -> {
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
                 runCatching {
-                    loadExtractor(playerUrl, embedUrl, subtitleCallback, callback)
-                    true
+                    loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
+                    emitted
                 }.getOrElse { false }
             }
             "tv" -> {
@@ -748,8 +757,8 @@ class ConfigDrivenProvider : MainAPI() {
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
                 runCatching {
-                    loadExtractor(playerUrl, embedUrl, subtitleCallback, callback)
-                    true
+                    loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
+                    emitted
                 }.getOrElse { false }
             }
             else -> false
