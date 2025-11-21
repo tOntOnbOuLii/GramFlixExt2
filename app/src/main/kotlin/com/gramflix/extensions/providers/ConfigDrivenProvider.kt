@@ -2446,15 +2446,15 @@ class ConfigDrivenProvider : MainAPI() {
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
+            if (parseNebryxUrl(pageUrl) != null || isNebryxSlug(loadData.slug)) {
+                return loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
+            }
             if (!imdbId.isNullOrBlank()) {
                 val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdbId"
                 return runCatching {
                     loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, hosterAwareCallback)
                     true
                 }.getOrElse { false }
-            }
-            if (parseNebryxUrl(pageUrl) != null || isNebryxSlug(loadData.slug)) {
-                return loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
