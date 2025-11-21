@@ -2145,13 +2145,6 @@ class ConfigDrivenProvider : MainAPI() {
                     handled = true
                 }
             }
-            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
-                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
-                if (coflixLists.isNotEmpty()) {
-                    lists.addAll(coflixLists)
-                    handled = true
-                }
-            }
             if (handled) return finalizeWithCache()
             val effectiveRule = rule ?: return false
             val response = fetchHtml(meta.baseUrl, referer = null)
