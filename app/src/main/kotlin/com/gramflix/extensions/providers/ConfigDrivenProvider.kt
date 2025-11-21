@@ -159,9 +159,10 @@ class ConfigDrivenProvider : MainAPI() {
         private const val DEFAULT_NEBRYX_BASE = "https://nebryx.fr"
         private const val FREMBED_SLUG = "frembed"
         private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
-        private const val HOME_CACHE_TTL_MS = 2 * 60 * 1000L
+        private const val HOME_CACHE_TTL_MS = 10 * 60 * 1000L
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
+        private const val TMDB_CACHE_TTL_MS = 10 * 60 * 1000L
     }
 
     private fun originFrom(url: String?): String? {
@@ -315,6 +316,10 @@ class ConfigDrivenProvider : MainAPI() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, HomeCacheEntry>?): Boolean =
             size > HOME_CACHE_MAX_ENTRIES
     }
+    private val tmdbCacheLock = Any()
+    private val tmdbCache = object : LinkedHashMap<String, Pair<Long, JSONObject>>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, JSONObject>>?): Boolean = size > 96
+    }
 
     private fun canonicalizeUrl(url: String): String = url.trim().trimEnd('/')
 
@@ -397,9 +402,23 @@ class ConfigDrivenProvider : MainAPI() {
                 append(queryString)
             }
         }
+        synchronized(tmdbCacheLock) {
+            tmdbCache[url]?.let { (ts, body) ->
+                if (System.currentTimeMillis() - ts <= TMDB_CACHE_TTL_MS) {
+                    return body
+                }
+                tmdbCache.remove(url)
+            }
+        }
         val response = runCatching { fetchJson(url) }.getOrNull() ?: return null
         val body = response.text ?: return null
-        return runCatching { JSONObject(body) }.getOrNull()
+        val json = runCatching { JSONObject(body) }.getOrNull()
+        if (json != null) {
+            synchronized(tmdbCacheLock) {
+                tmdbCache[url] = System.currentTimeMillis() to json
+            }
+        }
+        return json
     }
 
     private fun buildNebryxPoster(path: String?): String? {
@@ -2328,58 +2347,86 @@ class ConfigDrivenProvider : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse? {
         return try {
-            if (url.startsWith("imdb://")) {
-                val imdbId = url.removePrefix("imdb://")
-                val item = getCachedImdbItem(imdbId) ?: fetchImdbDetails(imdbId) ?: return null
+            val loadData = decodeLoadData(url)
+            val imdbFromData = loadData.imdbId
+            val titleHint = loadData.title
+            val posterHint = loadData.poster
+            val yearHint = loadData.year
+            val pageUrl = loadData.url
+            val slugHint = loadData.slug
+            if (pageUrl.isBlank()) return null
+            val imdbId = when {
+                url.startsWith("imdb://") -> url.removePrefix("imdb://")
+                !imdbFromData.isNullOrBlank() -> imdbFromData
+                else -> null
+            }
+            if (!imdbId.isNullOrBlank()) {
+                val item = getCachedImdbItem(imdbId)
+                    ?: if (!titleHint.isNullOrBlank()) {
+                        ImdbItem(imdbId, titleHint, posterHint, yearHint)
+                    } else {
+                        fetchImdbDetails(imdbId)
+                    }
+                    ?: return null
                 val dataPayload = encodeLoadData(
-                    url = url,
-                    slug = null,
+                    url = "imdb://$imdbId",
+                    slug = slugHint,
                     imdbId = imdbId,
                     title = item.title,
-                    poster = item.poster,
-                    year = item.year
+                    poster = item.poster ?: posterHint,
+                    year = item.year ?: yearHint
                 )
-                return newMovieLoadResponse(item.title, url, TvType.Movie, dataUrl = dataPayload) { }.apply {
+                return newMovieLoadResponse(item.title, "imdb://$imdbId", TvType.Movie, dataUrl = dataPayload) { }.apply {
                     item.poster?.let { posterUrl = it }
                     item.year?.let { year = it }
                 }
             }
-            if (parseNebryxUrl(url) != null) {
-                return loadNebryx(url)
+            if (parseNebryxUrl(pageUrl) != null) {
+                return loadNebryx(pageUrl)
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
-            val cachedSlug = findSlugForUrl(url)
+            val cachedSlug = slugHint ?: findSlugForUrl(pageUrl)
             val meta = when {
                 !cachedSlug.isNullOrBlank() -> findMetaBySlug(metas, cachedSlug)
-                else -> findMetaByUrl(url, metas)
+                else -> findMetaByUrl(pageUrl, metas)
             }
             if (meta != null) {
-                rememberSlugForUrl(url, meta.slug)
+                rememberSlugForUrl(pageUrl, meta.slug)
             }
-            val referer = meta?.baseUrl ?: url
-            val response = fetchHtml(url, referer = referer)
+            val referer = meta?.baseUrl ?: pageUrl
+            val response = fetchHtml(pageUrl, referer = referer)
             val doc = response.document
-            val pageLocation = doc.location().ifBlank { url }
+            val pageLocation = doc.location().ifBlank { pageUrl }
             val description = extractDescriptionFromDoc(doc)
-                ?: fetchWordpressDescription(url, meta?.baseUrl ?: url)
-            val title = doc.selectFirst("title")?.text()?.trim()?.ifBlank { null } ?: meta?.displayName ?: name
+                ?: fetchWordpressDescription(pageUrl, meta?.baseUrl ?: pageUrl)
+            val title = titleHint
+                ?: doc.selectFirst("title")?.text()?.trim()?.ifBlank { null }
+                ?: meta?.displayName
+                ?: name
             val poster = extractPosterFromDoc(doc, pageLocation)
             val episodes = parseTvEpisodes(meta, doc, pageLocation)
             if (episodes.isNotEmpty()) {
-                val seriesType = when (determineTvType(meta, url, null)) {
+                val seriesType = when (determineTvType(meta, pageUrl, null)) {
                     TvType.Anime -> TvType.Anime
                     else -> TvType.TvSeries
                 }
-                return newTvSeriesLoadResponse(title, url, seriesType, episodes) {
+                return newTvSeriesLoadResponse(title, pageLocation, seriesType, episodes) {
                     description?.let { plot = it }
-                    poster?.let { posterUrl = it }
+                    (posterHint ?: poster)?.let { posterUrl = it }
                 }
             }
-            val dataPayload = encodeLoadData(url, meta?.slug)
-            newMovieLoadResponse(title, url, TvType.Movie, dataUrl = dataPayload) {
+            val dataPayload = encodeLoadData(
+                url = pageLocation,
+                slug = meta?.slug ?: slugHint,
+                imdbId = imdbFromData,
+                title = title,
+                poster = posterHint ?: poster,
+                year = yearHint
+            )
+            newMovieLoadResponse(title, pageLocation, TvType.Movie, dataUrl = dataPayload) {
                 description?.let { plot = it }
-                poster?.let { posterUrl = it }
+                (posterHint ?: poster)?.let { posterUrl = it }
             }
         } catch (_: Throwable) {
             null
