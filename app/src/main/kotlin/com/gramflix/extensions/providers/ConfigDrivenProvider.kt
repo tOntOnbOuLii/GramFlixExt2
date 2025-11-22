@@ -987,8 +987,8 @@ class ConfigDrivenProvider : MainAPI() {
         }
         return when (entry.type) {
             "movie" -> {
-                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie") }.getOrNull())
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie", warmUrl = embedUrl) }.getOrNull())
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
@@ -1005,8 +1005,8 @@ class ConfigDrivenProvider : MainAPI() {
             "tv" -> {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
-                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv") }.getOrNull())
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv", warmUrl = embedUrl) }.getOrNull())
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
@@ -1287,10 +1287,22 @@ class ConfigDrivenProvider : MainAPI() {
         return urls.toList()
     }
 
-    private suspend fun fetchNebryxApiLinks(tmdbId: Int, type: String): NebryxApiLinks? {
+    private suspend fun fetchNebryxApiLinks(tmdbId: Int, type: String, warmUrl: String? = null): NebryxApiLinks? {
+        warmUrl?.let { runCatching { app.get(it, referer = nebryxBaseUrl()) } }
         val endpoints = nebryxLinkEndpoints(tmdbId, type)
         for (url in endpoints) {
-            val response = runCatching { app.get(url, referer = nebryxBaseUrl()) }.getOrNull() ?: continue
+            val response = runCatching {
+                app.get(
+                    url,
+                    referer = warmUrl ?: nebryxBaseUrl(),
+                    headers = mapOf(
+                        "Accept" to ACCEPT_JSON,
+                        "Origin" to frembedBaseUrl(),
+                        "X-Requested-With" to "XMLHttpRequest",
+                        "User-Agent" to BROWSER_USER_AGENT
+                    )
+                )
+            }.getOrNull() ?: continue
             val body = response.text ?: continue
             val json = runCatching { JSONObject(body) }.getOrNull() ?: continue
             return NebryxApiLinks(
