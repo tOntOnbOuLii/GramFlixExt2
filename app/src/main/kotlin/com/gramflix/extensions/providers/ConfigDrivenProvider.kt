@@ -919,20 +919,34 @@ class ConfigDrivenProvider : MainAPI() {
             "movie" -> {
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
-                runCatching {
+                val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
                 }.getOrElse { false }
+                val okFallback = if (!okPrimary) {
+                    runCatching {
+                        loadExtractor(embedUrl, referer, countingSubtitle, countingCallback)
+                        emitted
+                    }.getOrElse { false }
+                } else okPrimary
+                okPrimary || okFallback
             }
             "tv" -> {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
-                runCatching {
+                val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
                 }.getOrElse { false }
+                val okFallback = if (!okPrimary) {
+                    runCatching {
+                        loadExtractor(embedUrl, referer, countingSubtitle, countingCallback)
+                        emitted
+                    }.getOrElse { false }
+                } else okPrimary
+                okPrimary || okFallback
             }
             else -> false
         }
@@ -2797,6 +2811,17 @@ class ConfigDrivenProvider : MainAPI() {
             }
             if (!imdb.isNullOrBlank()) {
                 val embedUrl = "https://vidsrc.net/embed/movie?imdb=$imdb"
+                val ok = runCatching {
+                    loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, hosterAwareCallback)
+                    true
+                }.getOrElse { false }
+                if (ok) return true
+            }
+            if (nebryxEntry != null) {
+                val embedUrl = when (nebryxEntry.type.lowercase(Locale.ROOT)) {
+                    "tv" -> "https://vidsrc.net/embed/tv?tmdb=${nebryxEntry.tmdbId}&season=${nebryxEntry.season ?: 1}&episode=${nebryxEntry.episode ?: 1}"
+                    else -> "https://vidsrc.net/embed/movie?tmdb=${nebryxEntry.tmdbId}"
+                }
                 val ok = runCatching {
                     loadExtractor(embedUrl, "https://vidsrc.net/", subtitleCallback, hosterAwareCallback)
                     true
