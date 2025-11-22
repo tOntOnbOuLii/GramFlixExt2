@@ -192,6 +192,10 @@ class ConfigDrivenProvider : MainAPI() {
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
         private const val TMDB_CACHE_TTL_MS = 10 * 60 * 1000L
+
+        private fun logNebryx(message: String) {
+            println("[Nebryx] $message")
+        }
     }
 
     private fun originFrom(url: String?): String? {
@@ -932,6 +936,7 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val entry = parseNebryxUrl(data.url) ?: return false
+        logNebryx("loadNebryxLinks type=${entry.type} tmdb=${entry.tmdbId} season=${entry.season} episode=${entry.episode}")
         val pageReferer = data.url.takeIf { it.isNotBlank() } ?: nebryxBaseUrl()
         val embedBase = frembedBaseUrl()
         var emitted = false
@@ -988,8 +993,10 @@ class ConfigDrivenProvider : MainAPI() {
         return when (entry.type) {
             "movie" -> {
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
+                logNebryx("movie warm=${embedUrl} referer=${pageReferer}")
                 emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie", warmUrl = embedUrl) }.getOrNull())
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
+                logNebryx("movie playerUrl=${playerUrl}")
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
@@ -1006,8 +1013,10 @@ class ConfigDrivenProvider : MainAPI() {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
+                logNebryx("tv warm=${embedUrl} referer=${pageReferer}")
                 emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv", warmUrl = embedUrl) }.getOrNull())
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
+                logNebryx("tv playerUrl=${playerUrl}")
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
@@ -1288,9 +1297,19 @@ class ConfigDrivenProvider : MainAPI() {
     }
 
     private suspend fun fetchNebryxApiLinks(tmdbId: Int, type: String, warmUrl: String? = null): NebryxApiLinks? {
-        warmUrl?.let { runCatching { app.get(it, referer = nebryxBaseUrl()) } }
+        warmUrl?.let {
+            logNebryx("warmup GET $it")
+            runCatching {
+                val warmRes = app.get(it, referer = nebryxBaseUrl())
+                val warmCode = runCatching { warmRes.code }.getOrNull()
+                logNebryx("warmup status=${warmCode ?: "?"} len=${warmRes.text?.length ?: 0}")
+            }.onFailure { err ->
+                logNebryx("warmup failed: ${err.message}")
+            }
+        }
         val endpoints = nebryxLinkEndpoints(tmdbId, type)
         for (url in endpoints) {
+            logNebryx("api/films try $url")
             val response = runCatching {
                 app.get(
                     url,
@@ -1302,9 +1321,15 @@ class ConfigDrivenProvider : MainAPI() {
                         "User-Agent" to BROWSER_USER_AGENT
                     )
                 )
+            }.onFailure { err ->
+                logNebryx("api/films error on $url : ${err.message}")
             }.getOrNull() ?: continue
+            val status = runCatching { response.code }.getOrNull()
             val body = response.text ?: continue
-            val json = runCatching { JSONObject(body) }.getOrNull() ?: continue
+            logNebryx("api/films status=${status ?: "?"} len=${body.length} url=$url")
+            val json = runCatching { JSONObject(body) }.onFailure { err ->
+                logNebryx("api/films json fail on $url : ${err.message}")
+            }.getOrNull() ?: continue
             return NebryxApiLinks(
                 tmdb = json.optString("tmdb"),
                 imdb = json.optString("imdb"),
@@ -1331,6 +1356,7 @@ class ConfigDrivenProvider : MainAPI() {
                 link7vo = json.optString("link7vo")
             )
         }
+        logNebryx("api/films no links tmdb=$tmdbId type=$type")
         return null
     }
 
