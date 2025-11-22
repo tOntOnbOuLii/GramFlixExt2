@@ -50,7 +50,7 @@
             "embedSel": "iframe@src"
         },
         "coflix": {
-            "searchPath": "search?q=",
+            "searchPath": "/search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
             "titleSel": ".title, a",
