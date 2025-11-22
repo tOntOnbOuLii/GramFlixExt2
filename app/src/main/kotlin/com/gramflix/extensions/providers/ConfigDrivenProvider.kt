@@ -1028,6 +1028,8 @@ class ConfigDrivenProvider : MainAPI() {
                 apiReferer?.let { add(it) }
                 pageReferer.takeUnless { it == apiReferer }?.let { add(it) }
                 data.url.takeUnless { it.isBlank() }?.let { add(it) }
+                frembedBaseUrl().takeIf { it.isNotBlank() }?.let { add(it) }
+                nebryxBaseUrl().takeIf { it.isNotBlank() }?.let { add(it) }
             }
             candidates.forEach { link ->
                 when {
@@ -1038,7 +1040,12 @@ class ConfigDrivenProvider : MainAPI() {
                         runCatching { handleChristopher(link, referers.firstOrNull()) }
                     }
                     else -> {
-                        runCatching { tryLoadWithReferers(link, referers + link) }
+                        val refs = (referers + link).distinct()
+                        runCatching { tryLoadWithReferers(link, refs) }
+                        if (!emitted) {
+                            // dernier essai avec referer Frembed generique pour bypass 403 (netu/uqload/dsvplay)
+                            runCatching { loadExtractor(link, frembedBaseUrl(), countingSubtitle, countingCallback) }
+                        }
                     }
                 }
             }
