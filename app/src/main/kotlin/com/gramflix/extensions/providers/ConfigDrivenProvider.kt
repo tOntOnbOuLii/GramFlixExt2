@@ -2076,9 +2076,7 @@ class ConfigDrivenProvider : MainAPI() {
                 } else {
                     fallbackExtraction(meta, doc, query, dedupe, limit = 15, includeProvider = true)
                 }
-                if (items.isEmpty() && isCoflix(meta)) {
-                    items = searchCoflix(meta, query)
-                }
+                // Pas de fallback TMDB pour Coflix afin d'éviter les URLs Nebryx : on reste sur le scraping du site.
                 results += items
             } catch (_: Throwable) {
                 // Ignore providers that fail
@@ -2137,13 +2135,6 @@ class ConfigDrivenProvider : MainAPI() {
                     handled = true
                 }
             }
-            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
-                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
-                if (coflixLists.isNotEmpty()) {
-                    lists.addAll(coflixLists)
-                    handled = true
-                }
-            }
             if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
                 val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
                 if (apiSections.isNotEmpty()) {
@@ -2155,7 +2146,10 @@ class ConfigDrivenProvider : MainAPI() {
             val effectiveRule = rule ?: return false
             val response = fetchHtml(meta.baseUrl, referer = null)
             val doc = response.document
-            val items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
+            var items = extractWithRule(meta, doc, query = null, dedupe = dedupe, limit = 20, includeProvider = false)
+            if (items.isEmpty() && isCoflix(meta)) {
+                items = fallbackExtraction(meta, doc, query = null, dedupe = dedupe, limit = 25, includeProvider = false)
+            }
             val responses = items.map { it.response }
             if (responses.isNotEmpty()) {
                 lists += HomePageList(meta.displayName, responses)
