@@ -2250,6 +2250,10 @@ class ConfigDrivenProvider : MainAPI() {
                 results += searchNebryx(meta, query)
                 continue
             }
+            if (isCoflix(meta)) {
+                results += searchCoflix(meta, query)
+                continue
+            }
             val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
             val response = fetchHtml(url, referer = meta.baseUrl)
             val doc = response.document
@@ -2313,6 +2317,17 @@ class ConfigDrivenProvider : MainAPI() {
                 val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
                 if (nebryxLists.isNotEmpty()) {
                     lists.addAll(nebryxLists)
+                    handled = true
+                }
+            }
+            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
+                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
+                val filtered = coflixLists.mapNotNull { section ->
+                    val filteredItems = section.list.filterNot { isNebryxUrl(it.url) }
+                    if (filteredItems.isNotEmpty()) HomePageList(section.name, filteredItems) else null
+                }
+                if (filtered.isNotEmpty()) {
+                    lists.addAll(filtered)
                     handled = true
                 }
             }
