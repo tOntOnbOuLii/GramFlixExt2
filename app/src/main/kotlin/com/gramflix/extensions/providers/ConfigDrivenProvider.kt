@@ -140,6 +140,32 @@ class ConfigDrivenProvider : MainAPI() {
         val episode: Int? = null
     )
 
+    private data class NebryxApiLinks(
+        val tmdb: String?,
+        val imdb: String?,
+        val link1: String?,
+        val link2: String?,
+        val link3: String?,
+        val link4: String?,
+        val link5: String?,
+        val link6: String?,
+        val link7: String?,
+        val link1vostfr: String?,
+        val link2vostfr: String?,
+        val link3vostfr: String?,
+        val link4vostfr: String?,
+        val link5vostfr: String?,
+        val link6vostfr: String?,
+        val link7vostfr: String?,
+        val link1vo: String?,
+        val link2vo: String?,
+        val link3vo: String?,
+        val link4vo: String?,
+        val link5vo: String?,
+        val link6vo: String?,
+        val link7vo: String?
+    )
+
     companion object {
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
@@ -586,6 +612,8 @@ class ConfigDrivenProvider : MainAPI() {
         else -> TvType.Movie
     }
 
+    private fun nebryxApiBase(): String = "${nebryxBaseUrl().trimEnd('/')}/api/links"
+
     private fun buildCoflixSearchItems(meta: ProviderMeta, array: JSONArray?): List<SearchItem> {
         if (array == null || array.length() == 0) return emptyList()
         val items = mutableListOf<SearchItem>()
@@ -904,7 +932,7 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val entry = parseNebryxUrl(data.url) ?: return false
-        val referer = data.url.takeIf { it.isNotBlank() } ?: nebryxBaseUrl()
+        val pageReferer = data.url.takeIf { it.isNotBlank() } ?: nebryxBaseUrl()
         val embedBase = frembedBaseUrl()
         var emitted = false
         val countingCallback: (ExtractorLink) -> Unit = { link ->
@@ -915,38 +943,82 @@ class ConfigDrivenProvider : MainAPI() {
             emitted = true
             subtitleCallback(sub)
         }
+        suspend fun handleChristopher(url: String) {
+            val page = runCatching { fetchHtml(url, referer = pageReferer) }.getOrNull() ?: return
+            val body = page.text
+            val m3u8 = Regex("""https?://[^"'\\s]+\\.m3u8[^"'\\s]*""", RegexOption.IGNORE_CASE).find(body)?.value
+            val fileUrl = m3u8 ?: Regex("""source\s*=\s*['"]([^'"]+)['"]""").find(body)?.groupValues?.getOrNull(1)
+            val finalUrl = fileUrl ?: return
+            callback(
+                newExtractorLink(
+                    source = "ChristopherUntilPoint",
+                    name = "ChristopherUntilPoint",
+                    url = finalUrl,
+                    type = if (finalUrl.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                ) {
+                    this.referer = url
+                    headers = mapOf(
+                        "Referer" to "https://christopheruntilpoint.com/",
+                        "Origin" to "https://christopheruntilpoint.com",
+                        "User-Agent" to BROWSER_USER_AGENT
+                    )
+                    quality = Qualities.Unknown.value
+                }
+            )
+            emitted = true
+        }
+        suspend fun emitFromApiLinks(api: NebryxApiLinks?) {
+            if (api == null) return
+            val candidates = listOfNotNull(
+                api.link1, api.link2, api.link3, api.link4, api.link5, api.link6, api.link7,
+                api.link1vostfr, api.link2vostfr, api.link3vostfr, api.link4vostfr, api.link5vostfr, api.link6vostfr, api.link7vostfr,
+                api.link1vo, api.link2vo, api.link3vo, api.link4vo, api.link5vo, api.link6vo, api.link7vo
+            ).mapNotNull { it.trim().takeIf { url -> url.isNotBlank() } }.distinct()
+            candidates.forEach { link ->
+                if (link.contains("christopheruntilpoint.com", ignoreCase = true)) {
+                    runCatching { handleChristopher(link) }
+                } else {
+                    runCatching {
+                        loadExtractor(link, pageReferer, countingSubtitle, countingCallback)
+                        true
+                    }
+                }
+            }
+        }
         return when (entry.type) {
             "movie" -> {
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie") }.getOrNull())
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
-                val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
+                val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
                 }.getOrElse { false }
                 val okFallback = if (!okPrimary) {
                     runCatching {
-                        loadExtractor(embedUrl, referer, countingSubtitle, countingCallback)
+                        loadExtractor(embedUrl, pageReferer, countingSubtitle, countingCallback)
                         emitted
                     }.getOrElse { false }
                 } else okPrimary
-                okPrimary || okFallback
+                okPrimary || okFallback || emitted
             }
             "tv" -> {
                 val season = entry.season ?: return false
                 val episode = entry.episode ?: return false
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv") }.getOrNull())
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
-                val playerUrl = resolveFrembedPlayerUrl(embedUrl, referer)
+                val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 val okPrimary = runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
                 }.getOrElse { false }
                 val okFallback = if (!okPrimary) {
                     runCatching {
-                        loadExtractor(embedUrl, referer, countingSubtitle, countingCallback)
+                        loadExtractor(embedUrl, pageReferer, countingSubtitle, countingCallback)
                         emitted
                     }.getOrElse { false }
                 } else okPrimary
-                okPrimary || okFallback
+                okPrimary || okFallback || emitted
             }
             else -> false
         }
@@ -1204,6 +1276,49 @@ class ConfigDrivenProvider : MainAPI() {
     private fun decodeBase64Url(value: String?): String? {
         if (value.isNullOrBlank()) return null
         return runCatching { String(Base64.getDecoder().decode(value)) }.getOrNull()
+    }
+
+    private fun nebryxLinkEndpoints(tmdbId: Int, type: String): List<String> {
+        val base = nebryxApiBase()
+        val urls = linkedSetOf<String>()
+        urls += "$base?id=$tmdbId&type=$type"
+        urls += "$base?id=$tmdbId"
+        return urls.toList()
+    }
+
+    private suspend fun fetchNebryxApiLinks(tmdbId: Int, type: String): NebryxApiLinks? {
+        val endpoints = nebryxLinkEndpoints(tmdbId, type)
+        for (url in endpoints) {
+            val response = runCatching { app.get(url, referer = nebryxBaseUrl()) }.getOrNull() ?: continue
+            val body = response.text ?: continue
+            val json = runCatching { JSONObject(body) }.getOrNull() ?: continue
+            return NebryxApiLinks(
+                tmdb = json.optString("tmdb"),
+                imdb = json.optString("imdb"),
+                link1 = json.optString("link1"),
+                link2 = json.optString("link2"),
+                link3 = json.optString("link3"),
+                link4 = json.optString("link4"),
+                link5 = json.optString("link5"),
+                link6 = json.optString("link6"),
+                link7 = json.optString("link7"),
+                link1vostfr = json.optString("link1vostfr"),
+                link2vostfr = json.optString("link2vostfr"),
+                link3vostfr = json.optString("link3vostfr"),
+                link4vostfr = json.optString("link4vostfr"),
+                link5vostfr = json.optString("link5vostfr"),
+                link6vostfr = json.optString("link6vostfr"),
+                link7vostfr = json.optString("link7vostfr"),
+                link1vo = json.optString("link1vo"),
+                link2vo = json.optString("link2vo"),
+                link3vo = json.optString("link3vo"),
+                link4vo = json.optString("link4vo"),
+                link5vo = json.optString("link5vo"),
+                link6vo = json.optString("link6vo"),
+                link7vo = json.optString("link7vo")
+            )
+        }
+        return null
     }
 
     private fun extractSeasonEpisodeFromParams(params: Map<String, String>): Pair<Int?, Int?> {
