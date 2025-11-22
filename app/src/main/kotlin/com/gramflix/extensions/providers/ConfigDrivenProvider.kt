@@ -612,7 +612,7 @@ class ConfigDrivenProvider : MainAPI() {
         else -> TvType.Movie
     }
 
-    private fun nebryxApiBase(): String = "${nebryxBaseUrl().trimEnd('/')}/api/links"
+    private fun nebryxApiBase(): String = "${frembedBaseUrl().trimEnd('/')}/api/films"
 
     private fun buildCoflixSearchItems(meta: ProviderMeta, array: JSONArray?): List<SearchItem> {
         if (array == null || array.length() == 0) return emptyList()
@@ -1281,7 +1281,8 @@ class ConfigDrivenProvider : MainAPI() {
     private fun nebryxLinkEndpoints(tmdbId: Int, type: String): List<String> {
         val base = nebryxApiBase()
         val urls = linkedSetOf<String>()
-        urls += "$base?id=$tmdbId&type=$type"
+        urls += "$base?id=$tmdbId&idType=tmdb"
+        urls += "$base?id=$tmdbId&idType=$type"
         urls += "$base?id=$tmdbId"
         return urls.toList()
     }
