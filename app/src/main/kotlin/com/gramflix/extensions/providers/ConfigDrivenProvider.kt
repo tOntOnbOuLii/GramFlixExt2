@@ -549,7 +549,7 @@ class ConfigDrivenProvider : MainAPI() {
             }
             val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
             val poster = buildNebryxPoster(obj.optString("poster_path"))
-            val url = buildCoflixUrl(typeSlug, id)
+            val url = buildNebryxUrl(typeSlug, id)
             if (!seen.add("$typeSlug-$id")) continue
             val item = createSearchItem(
                 meta = meta,
@@ -603,7 +603,7 @@ class ConfigDrivenProvider : MainAPI() {
             }
             val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
             val poster = buildNebryxPoster(obj.optString("poster_path"))
-            val url = buildNebryxUrl(typeSlug, id)
+            val url = buildCoflixUrl(typeSlug, id)
             if (!seen.add("$typeSlug-$id")) continue
             val item = createSearchItem(
                 meta = meta,
