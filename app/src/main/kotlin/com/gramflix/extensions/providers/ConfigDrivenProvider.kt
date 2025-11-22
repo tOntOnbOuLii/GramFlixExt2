@@ -2071,10 +2071,13 @@ class ConfigDrivenProvider : MainAPI() {
                 val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
                 val response = fetchHtml(url, referer = meta.baseUrl)
                 val doc = response.document
-                val items = if (meta.rule != null) {
+                var items = if (meta.rule != null) {
                     extractWithRule(meta, doc, query, dedupe, limit = 25, includeProvider = true)
                 } else {
                     fallbackExtraction(meta, doc, query, dedupe, limit = 15, includeProvider = true)
+                }
+                if (items.isEmpty() && isCoflix(meta)) {
+                    items = searchCoflix(meta, query)
                 }
                 results += items
             } catch (_: Throwable) {
@@ -2131,6 +2134,13 @@ class ConfigDrivenProvider : MainAPI() {
                 val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
                 if (nebryxLists.isNotEmpty()) {
                     lists.addAll(nebryxLists)
+                    handled = true
+                }
+            }
+            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
+                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
+                if (coflixLists.isNotEmpty()) {
+                    lists.addAll(coflixLists)
                     handled = true
                 }
             }
