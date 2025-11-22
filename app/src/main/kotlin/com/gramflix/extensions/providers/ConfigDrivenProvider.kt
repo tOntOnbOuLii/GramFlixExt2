@@ -938,6 +938,21 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private suspend fun loadNebryxEmbed(
+        pageUrl: String,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val doc = fetchHtml(pageUrl, referer = nebryxBaseUrl()).document
+        val iframe = doc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
+            ?: doc.selectFirst("iframe[src]")?.attr("src")?.takeIf { it.isNotBlank() }?.let { resolveAgainst(pageUrl, it) }
+            ?: return false
+        return runCatching {
+            loadExtractor(iframe, pageUrl, subtitleCallback, callback)
+            true
+        }.getOrDefault(false)
+    }
+
     private suspend fun loadCoflixEmbed(
         pageUrl: String,
         subtitleCallback: (SubtitleFile) -> Unit,
@@ -2764,6 +2779,8 @@ class ConfigDrivenProvider : MainAPI() {
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
                 if (ok) return true
+                val okEmbed = loadNebryxEmbed(pageUrl, subtitleCallback, hosterAwareCallback)
+                if (okEmbed) return true
             }
             if (isCoflixUrl(pageUrl) || loadData.slug.equals(COFLIX_SLUG, ignoreCase = true)) {
                 val coflixEntry = parseCoflixUrl(pageUrl)
