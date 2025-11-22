@@ -153,6 +153,8 @@ class ConfigDrivenProvider : MainAPI() {
         private val UNS_AES_IV = "1234567890oiuytr".toByteArray(Charsets.UTF_8)
         private const val NEBRYX_SLUG = "nebryx"
         private const val NEBRYX_SCHEME = "nebryx://"
+        private const val COFLIX_SLUG = "coflix"
+        private const val COFLIX_SCHEME = "coflix://"
         private const val TMDB_API_BASE = "https://api.themoviedb.org/3"
         private const val TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
         private const val TMDB_DEFAULT_LANGUAGE = "fr-FR"
@@ -477,6 +479,44 @@ class ConfigDrivenProvider : MainAPI() {
         return responses
     }
 
+    private fun buildCoflixResponses(
+        meta: ProviderMeta,
+        array: JSONArray?,
+        limit: Int,
+        includeProvider: Boolean,
+        type: String,
+        tvType: TvType
+    ): List<SearchResponse> {
+        if (array == null || array.length() == 0) return emptyList()
+        val responses = ArrayList<SearchResponse>()
+        val maxItems = min(limit, array.length())
+        val titleKey = if (type.equals("tv", ignoreCase = true)) "name" else "title"
+        val dateKey = if (type.equals("tv", ignoreCase = true)) "first_air_date" else "release_date"
+        for (index in 0 until maxItems) {
+            val obj = array.optJSONObject(index) ?: continue
+            val id = obj.optInt("id")
+            if (id <= 0) continue
+            val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
+            val poster = buildNebryxPoster(obj.optString("poster_path"))
+            val url = buildCoflixUrl(type, id)
+            val item = createSearchItem(
+                meta = meta,
+                title = title,
+                url = url,
+                poster = poster,
+                includeProvider = includeProvider,
+                query = null,
+                tvType = tvType
+            ) ?: continue
+            val year = tmdbReleaseYear(obj.optString(dateKey))
+            if (year != null && tvType == TvType.Movie) {
+                (item.response as? MovieSearchResponse)?.year = year
+            }
+            responses += item.response
+        }
+        return responses
+    }
+
     private suspend fun searchNebryx(meta: ProviderMeta, query: String): List<SearchItem> {
         if (query.isBlank()) return emptyList()
         val json = tmdbGet("/search/multi", mapOf("query" to query, "page" to "1")) ?: return emptyList()
@@ -509,7 +549,7 @@ class ConfigDrivenProvider : MainAPI() {
             }
             val title = obj.optString(titleKey).takeIf { it.isNotBlank() } ?: continue
             val poster = buildNebryxPoster(obj.optString("poster_path"))
-            val url = buildNebryxUrl(typeSlug, id)
+            val url = buildCoflixUrl(typeSlug, id)
             if (!seen.add("$typeSlug-$id")) continue
             val item = createSearchItem(
                 meta = meta,
@@ -624,11 +664,11 @@ class ConfigDrivenProvider : MainAPI() {
         for ((label, path, tvType) in endpoints) {
             val json = tmdbGet(path) ?: continue
             val typeSlug = if (path.contains("/tv/")) "tv" else "movie"
-            val entries = buildNebryxResponses(
+            val entries = buildCoflixResponses(
                 meta = meta,
                 array = json.optJSONArray("results"),
                 limit = 20,
-                includeProvider = true,
+                includeProvider = false,
                 type = typeSlug,
                 tvType = tvType
             )
@@ -639,7 +679,12 @@ class ConfigDrivenProvider : MainAPI() {
         return sections
     }
 
-    private suspend fun buildNebryxEpisodes(tmdbId: Int, seasons: JSONArray?): List<Episode> {
+    private suspend fun buildTmdbEpisodes(
+        tmdbId: Int,
+        seasons: JSONArray?,
+        slug: String,
+        urlBuilder: (Int, Int) -> String
+    ): List<Episode> {
         if (seasons == null || seasons.length() == 0) return emptyList()
         val episodes = mutableListOf<Episode>()
         for (i in 0 until seasons.length()) {
@@ -653,8 +698,8 @@ class ConfigDrivenProvider : MainAPI() {
                 val episodeNumber = episodeObj.optInt("episode_number")
                 if (episodeNumber <= 0) continue
                 val epTitle = episodeObj.optString("name").takeIf { it.isNotBlank() } ?: "Episode $episodeNumber"
-                val epUrl = buildNebryxUrl("tv", tmdbId, seasonNumber, episodeNumber)
-                val encoded = encodeLoadData(epUrl, NEBRYX_SLUG)
+                val epUrl = urlBuilder(seasonNumber, episodeNumber)
+                val encoded = encodeLoadData(epUrl, slug)
                 val still = buildNebryxPoster(episodeObj.optString("still_path"))
                 val overview = episodeObj.optString("overview").takeIf { it.isNotBlank() }
                 val runtime = episodeObj.optInt("runtime").takeIf { it > 0 }
@@ -678,6 +723,15 @@ class ConfigDrivenProvider : MainAPI() {
         return when (entry.type) {
             "movie" -> loadNebryxMovie(entry)
             "tv" -> loadNebryxSeries(entry)
+            else -> null
+        }
+    }
+
+    private suspend fun loadCoflix(url: String): LoadResponse? {
+        val entry = parseCoflixUrl(url) ?: return null
+        return when (entry.type) {
+            "movie" -> loadCoflixMovie(entry)
+            "tv" -> loadCoflixSeries(entry)
             else -> null
         }
     }
@@ -706,6 +760,30 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 
+    private suspend fun loadCoflixMovie(entry: NebryxEntry): LoadResponse? {
+        val tmdbId = entry.tmdbId
+        val json = tmdbGet("/movie/$tmdbId") ?: return null
+        val title = json.optString("title").takeIf { it.isNotBlank() } ?: json.optString("name").takeIf { it.isNotBlank() } ?: "Coflix"
+        val overview = json.optString("overview").takeIf { it.isNotBlank() }
+        val poster = buildNebryxPoster(json.optString("poster_path"))
+        val year = tmdbReleaseYear(json.optString("release_date"))
+        val imdbId = json.optString("imdb_id").takeIf { it.isNotBlank() }
+        val canonicalUrl = buildCoflixUrl("movie", tmdbId)
+        val dataPayload = encodeLoadData(
+            url = canonicalUrl,
+            slug = COFLIX_SLUG,
+            imdbId = imdbId,
+            title = title,
+            poster = poster,
+            year = year
+        )
+        return newMovieLoadResponse(title, canonicalUrl, TvType.Movie, dataUrl = dataPayload) {
+            overview?.let { plot = it }
+            poster?.let { posterUrl = it }
+            year?.let { this.year = it }
+        }
+    }
+
     private suspend fun loadNebryxSeries(entry: NebryxEntry): LoadResponse? {
         val tmdbId = entry.tmdbId
         val json = tmdbGet("/tv/$tmdbId") ?: return null
@@ -715,9 +793,32 @@ class ConfigDrivenProvider : MainAPI() {
         val overview = json.optString("overview").takeIf { it.isNotBlank() }
         val poster = buildNebryxPoster(json.optString("poster_path"))
         val year = tmdbReleaseYear(json.optString("first_air_date"))
-        val episodes = buildNebryxEpisodes(tmdbId, json.optJSONArray("seasons"))
+        val episodes = buildTmdbEpisodes(tmdbId, json.optJSONArray("seasons"), NEBRYX_SLUG) { season, episode ->
+            buildNebryxUrl("tv", tmdbId, season, episode)
+        }
         if (episodes.isEmpty()) return null
         val canonicalUrl = buildNebryxUrl("tv", tmdbId)
+        return newTvSeriesLoadResponse(title, canonicalUrl, TvType.TvSeries, episodes) {
+            overview?.let { plot = it }
+            poster?.let { posterUrl = it }
+            year?.let { this.year = it }
+        }
+    }
+
+    private suspend fun loadCoflixSeries(entry: NebryxEntry): LoadResponse? {
+        val tmdbId = entry.tmdbId
+        val json = tmdbGet("/tv/$tmdbId") ?: return null
+        val title = json.optString("name").takeIf { it.isNotBlank() }
+            ?: json.optString("original_name").takeIf { it.isNotBlank() }
+            ?: "Coflix"
+        val overview = json.optString("overview").takeIf { it.isNotBlank() }
+        val poster = buildNebryxPoster(json.optString("poster_path"))
+        val year = tmdbReleaseYear(json.optString("first_air_date"))
+        val episodes = buildTmdbEpisodes(tmdbId, json.optJSONArray("seasons"), COFLIX_SLUG) { season, episode ->
+            buildCoflixUrl("tv", tmdbId, season, episode)
+        }
+        if (episodes.isEmpty()) return null
+        val canonicalUrl = buildCoflixUrl("tv", tmdbId)
         return newTvSeriesLoadResponse(title, canonicalUrl, TvType.TvSeries, episodes) {
             overview?.let { plot = it }
             poster?.let { posterUrl = it }
@@ -759,6 +860,40 @@ class ConfigDrivenProvider : MainAPI() {
                 runCatching {
                     loadExtractor(playerUrl, embedUrl, countingSubtitle, countingCallback)
                     emitted
+                }.getOrElse { false }
+            }
+            else -> false
+        }
+    }
+
+    private suspend fun loadCoflixLinks(
+        entry: NebryxEntry,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val tmdbId = entry.tmdbId
+        val imdb = resolveImdbFromNebryx(entry)
+        return when (entry.type.lowercase(Locale.ROOT)) {
+            "movie" -> {
+                val embed = when {
+                    !imdb.isNullOrBlank() -> "https://vidsrc.net/embed/movie?imdb=$imdb"
+                    else -> "https://vidsrc.net/embed/movie?tmdb=$tmdbId"
+                }
+                runCatching {
+                    loadExtractor(embed, "https://vidsrc.net/", subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+            }
+            "tv" -> {
+                val season = entry.season ?: return false
+                val episode = entry.episode ?: return false
+                val embed = when {
+                    !imdb.isNullOrBlank() -> "https://vidsrc.net/embed/tv/$imdb/$season/$episode"
+                    else -> "https://vidsrc.net/embed/tv?tmdb=$tmdbId&season=$season&episode=$episode"
+                }
+                runCatching {
+                    loadExtractor(embed, "https://vidsrc.net/", subtitleCallback, callback)
+                    true
                 }.getOrElse { false }
             }
             else -> false
@@ -827,7 +962,24 @@ class ConfigDrivenProvider : MainAPI() {
         RemoteConfig.getProviderBaseUrlOrNull(FREMBED_SLUG, DEFAULT_FREMBED_BASE)?.trimEnd('/') ?: DEFAULT_FREMBED_BASE
 
     private fun isCoflix(meta: ProviderMeta?): Boolean =
-        meta?.slug?.equals("coflix", ignoreCase = true) == true
+        meta?.slug?.equals(COFLIX_SLUG, ignoreCase = true) == true
+
+    private fun isNebryxUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        if (parseNebryxUrl(url) != null) return true
+        val host = normalizeHost(url)
+        val nebryxHost = normalizeHost(nebryxBaseUrl())
+        return host != null && nebryxHost != null && (host == nebryxHost || host.endsWith(".$nebryxHost"))
+    }
+
+    private fun isCoflixUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        if (parseCoflixUrl(url) != null) return true
+        val host = normalizeHost(url)
+        val coflixBase = RemoteConfig.getProviderBaseUrlOrNull(COFLIX_SLUG, "https://coflix.day") ?: "https://coflix.day"
+        val coflixHost = normalizeHost(coflixBase)
+        return host != null && coflixHost != null && (host == coflixHost || host.endsWith(".$coflixHost"))
+    }
 
     private fun buildNebryxUrl(type: String, tmdbId: Int, season: Int? = null, episode: Int? = null): String {
         val base = nebryxBaseUrl().trimEnd('/')
@@ -840,8 +992,36 @@ class ConfigDrivenProvider : MainAPI() {
         return "$base/watch.html?${queryParts.joinToString("&")}"
     }
 
+    private fun buildCoflixUrl(type: String, tmdbId: Int, season: Int? = null, episode: Int? = null): String {
+        val path = when (type.lowercase(Locale.ROOT)) {
+            "tv" -> "tv/$tmdbId"
+            else -> "movie/$tmdbId"
+        }
+        val queryParts = mutableListOf<String>()
+        season?.let { queryParts += "season=$it" }
+        episode?.let { queryParts += "episode=$it" }
+        val query = if (queryParts.isNotEmpty()) "?${queryParts.joinToString("&")}" else ""
+        return "$COFLIX_SCHEME$path$query"
+    }
+
     private fun parseNebryxUrl(url: String): NebryxEntry? {
         return parseNebryxSchemeUrl(url) ?: parseNebryxWatchUrl(url)
+    }
+
+    private fun parseCoflixUrl(url: String): NebryxEntry? {
+        if (!url.startsWith(COFLIX_SCHEME, ignoreCase = true)) return null
+        val uri = runCatching { URI(url) }.getOrNull() ?: return null
+        val payload = uri.schemeSpecificPart?.removePrefix("//") ?: uri.schemeSpecificPart ?: return null
+        val trimmed = payload.trim('/').takeIf { it.isNotBlank() } ?: return null
+        val parts = trimmed.split("?", limit = 2)
+        val path = parts.first()
+        val pathParts = path.split("/")
+        if (pathParts.size != 2) return null
+        val type = pathParts[0].lowercase(Locale.ROOT)
+        val id = pathParts[1].toIntOrNull() ?: return null
+        val params = parseQueryParams(parts.getOrNull(1).orEmpty())
+        val (season, episode) = extractSeasonEpisodeFromParams(params)
+        return NebryxEntry(type, id, season, episode)
     }
 
     private fun parseNebryxSchemeUrl(url: String): NebryxEntry? {
@@ -1854,7 +2034,7 @@ class ConfigDrivenProvider : MainAPI() {
             TvType.TvSeries -> TvType.TvSeries
             else -> TvType.Movie
         }
-        val finalUrl = if (meta.slug.equals(NEBRYX_SLUG, ignoreCase = true)) {
+        val finalUrl = if (meta.slug.equals(NEBRYX_SLUG, ignoreCase = true) || meta.slug.equals(COFLIX_SLUG, ignoreCase = true)) {
             encodeLoadData(url, meta.slug)
         } else {
             url
@@ -1921,6 +2101,7 @@ class ConfigDrivenProvider : MainAPI() {
         val cards = doc.select(rule.itemSel)
         for (card in cards) {
             val href = resolveHref(card, rule, pageBase) ?: continue
+            if (isCoflix(meta) && isNebryxUrl(href)) continue
             val normalizedHref = canonicalizeUrl(href)
             val dedupeKey = "${meta.slug}::$normalizedHref"
             if (!dedupe.add(dedupeKey)) continue
@@ -2028,6 +2209,7 @@ class ConfigDrivenProvider : MainAPI() {
                 if (raw.isBlank()) "" else resolveAgainst(pageBase, raw) ?: raw
             }
             if (resolved.isBlank()) continue
+            if (isCoflix(meta) && isNebryxUrl(resolved)) continue
             val host = normalizeHost(resolved)
             if (baseHost != null && host != null && host != baseHost && !host.endsWith(".$baseHost")) continue
             val rawTitle = anchor.text().ifBlank { anchor.attr("title") }
@@ -2068,6 +2250,10 @@ class ConfigDrivenProvider : MainAPI() {
                     results += searchNebryx(meta, query)
                     continue
                 }
+                if (isCoflix(meta)) {
+                    results += searchCoflix(meta, query)
+                    continue
+                }
                 val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
                 val response = fetchHtml(url, referer = meta.baseUrl)
                 val doc = response.document
@@ -2076,7 +2262,6 @@ class ConfigDrivenProvider : MainAPI() {
                 } else {
                     fallbackExtraction(meta, doc, query, dedupe, limit = 15, includeProvider = true)
                 }
-                // Pas de fallback TMDB pour Coflix afin d'éviter les URLs Nebryx : on reste sur le scraping du site.
                 results += items
             } catch (_: Throwable) {
                 // Ignore providers that fail
@@ -2132,6 +2317,17 @@ class ConfigDrivenProvider : MainAPI() {
                 val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
                 if (nebryxLists.isNotEmpty()) {
                     lists.addAll(nebryxLists)
+                    handled = true
+                }
+            }
+            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
+                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
+                val filtered = coflixLists.mapNotNull { section ->
+                    val filteredItems = section.list.filterNot { isNebryxUrl(it.url) }
+                    if (filteredItems.isNotEmpty()) HomePageList(section.name, filteredItems) else null
+                }
+                if (filtered.isNotEmpty()) {
+                    lists.addAll(filtered)
                     handled = true
                 }
             }
@@ -2395,6 +2591,9 @@ class ConfigDrivenProvider : MainAPI() {
             if (parseNebryxUrl(pageUrl) != null) {
                 return loadNebryx(pageUrl)
             }
+            if (parseCoflixUrl(pageUrl) != null || slugHint.equals(COFLIX_SLUG, ignoreCase = true)) {
+                return loadCoflix(pageUrl)
+            }
             ensureRemoteConfigs()
             val metas = gatherProviders()
             val cachedSlug = slugHint ?: findSlugForUrl(pageUrl)
@@ -2460,6 +2659,11 @@ class ConfigDrivenProvider : MainAPI() {
             val nebryxEntry = parseNebryxUrl(pageUrl)
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
+                if (ok) return true
+            }
+            val coflixEntry = parseCoflixUrl(pageUrl)
+            if (coflixEntry != null || loadData.slug.equals(COFLIX_SLUG, ignoreCase = true)) {
+                val ok = loadCoflixLinks(coflixEntry ?: parseCoflixUrl(loadData.url) ?: return false, subtitleCallback, hosterAwareCallback)
                 if (ok) return true
             }
             var imdb = imdbId
