@@ -2246,19 +2246,15 @@ class ConfigDrivenProvider : MainAPI() {
         val results = mutableListOf<SearchItem>()
         for (meta in metas) {
             try {
-                if (isNebryx(meta)) {
-                    results += searchNebryx(meta, query)
-                    continue
-                }
-                if (isCoflix(meta)) {
-                    results += searchCoflix(meta, query)
-                    continue
-                }
-                val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
-                val response = fetchHtml(url, referer = meta.baseUrl)
-                val doc = response.document
-                var items = if (meta.rule != null) {
-                    extractWithRule(meta, doc, query, dedupe, limit = 25, includeProvider = true)
+            if (isNebryx(meta)) {
+                results += searchNebryx(meta, query)
+                continue
+            }
+            val url = buildSearchUrl(meta.baseUrl, meta.rule, query) ?: continue
+            val response = fetchHtml(url, referer = meta.baseUrl)
+            val doc = response.document
+            var items = if (meta.rule != null) {
+                extractWithRule(meta, doc, query, dedupe, limit = 25, includeProvider = true)
                 } else {
                     fallbackExtraction(meta, doc, query, dedupe, limit = 15, includeProvider = true)
                 }
@@ -2317,17 +2313,6 @@ class ConfigDrivenProvider : MainAPI() {
                 val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
                 if (nebryxLists.isNotEmpty()) {
                     lists.addAll(nebryxLists)
-                    handled = true
-                }
-            }
-            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
-                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
-                val filtered = coflixLists.mapNotNull { section ->
-                    val filteredItems = section.list.filterNot { isNebryxUrl(it.url) }
-                    if (filteredItems.isNotEmpty()) HomePageList(section.name, filteredItems) else null
-                }
-                if (filtered.isNotEmpty()) {
-                    lists.addAll(filtered)
                     handled = true
                 }
             }
