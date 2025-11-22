@@ -974,11 +974,23 @@ class ConfigDrivenProvider : MainAPI() {
             emitted = true
         }
         suspend fun handleStreamTales(url: String, referer: String?) {
-            val decoded = runCatching { URLDecoder.decode(url, StandardCharsets.UTF_8.name()) }.getOrElse { url }
-            val direct = Regex("""url=([^&]+)""").find(decoded)?.groupValues?.getOrNull(1)?.let {
-                runCatching { URLDecoder.decode(it, StandardCharsets.UTF_8.name()) }.getOrElse { it }
+            val decoded: String = try {
+                URLDecoder.decode(url, StandardCharsets.UTF_8.name())
+            } catch (_: Throwable) {
+                url
+            }
+            val direct: String? = try {
+                Regex("""url=([^&]+)""").find(decoded)?.groupValues?.getOrNull(1)?.let { candidate ->
+                    try {
+                        URLDecoder.decode(candidate, StandardCharsets.UTF_8.name())
+                    } catch (_: Throwable) {
+                        candidate
+                    }
+                }
+            } catch (_: Throwable) {
+                null
             } ?: decoded.takeIf { it.contains(".mp4", ignoreCase = true) || it.contains(".m3u8", ignoreCase = true) }
-            val finalUrl = direct ?: return
+            val finalUrl: String = direct ?: return
             val type = if (finalUrl.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
             callback(
                 newExtractorLink(
@@ -994,7 +1006,7 @@ class ConfigDrivenProvider : MainAPI() {
             emitted = true
         }
         suspend fun tryLoadWithReferers(link: String, referers: List<String>) {
-            val refs = referers.filter { it.isNotBlank() }.distinct()
+            val refs: List<String> = referers.filter { it.isNotBlank() }.distinct()
             if (refs.isEmpty()) {
                 runCatching { loadExtractor(link, link, countingSubtitle, countingCallback) }
                 return
@@ -1012,7 +1024,7 @@ class ConfigDrivenProvider : MainAPI() {
                 api.link1vostfr, api.link2vostfr, api.link3vostfr, api.link4vostfr, api.link5vostfr, api.link6vostfr, api.link7vostfr,
                 api.link1vo, api.link2vo, api.link3vo, api.link4vo, api.link5vo, api.link6vo, api.link7vo
             ).mapNotNull { it.trim().takeIf { url -> url.isNotBlank() } }.distinct()
-            val referers = buildList {
+            val referers: List<String> = buildList<String> {
                 apiReferer?.let { add(it) }
                 pageReferer.takeUnless { it == apiReferer }?.let { add(it) }
                 data.url.takeUnless { it.isBlank() }?.let { add(it) }
