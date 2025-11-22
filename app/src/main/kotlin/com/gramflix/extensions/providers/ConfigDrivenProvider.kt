@@ -34,6 +34,7 @@ import org.jsoup.nodes.Element
 import org.jsoup.Jsoup
 import java.net.URI
 import java.net.URLEncoder
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -948,8 +949,8 @@ class ConfigDrivenProvider : MainAPI() {
             emitted = true
             subtitleCallback(sub)
         }
-        suspend fun handleChristopher(url: String) {
-            val page = runCatching { fetchHtml(url, referer = pageReferer) }.getOrNull() ?: return
+        suspend fun handleChristopher(url: String, referer: String?) {
+            val page = runCatching { fetchHtml(url, referer = referer ?: pageReferer) }.getOrNull() ?: return
             val body = page.text
             val m3u8 = Regex("""https?://[^"'\\s]+\\.m3u8[^"'\\s]*""", RegexOption.IGNORE_CASE).find(body)?.value
             val fileUrl = m3u8 ?: Regex("""source\s*=\s*['"]([^'"]+)['"]""").find(body)?.groupValues?.getOrNull(1)
@@ -961,7 +962,7 @@ class ConfigDrivenProvider : MainAPI() {
                     url = finalUrl,
                     type = if (finalUrl.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
                 ) {
-                    this.referer = url
+                    this.referer = referer ?: url
                     headers = mapOf(
                         "Referer" to "https://christopheruntilpoint.com/",
                         "Origin" to "https://christopheruntilpoint.com",
@@ -972,20 +973,60 @@ class ConfigDrivenProvider : MainAPI() {
             )
             emitted = true
         }
-        suspend fun emitFromApiLinks(api: NebryxApiLinks?) {
+        suspend fun handleStreamTales(url: String, referer: String?) {
+            val decoded = runCatching { URLDecoder.decode(url, StandardCharsets.UTF_8.name()) }.getOrElse { url }
+            val direct = Regex("""url=([^&]+)""").find(decoded)?.groupValues?.getOrNull(1)?.let {
+                runCatching { URLDecoder.decode(it, StandardCharsets.UTF_8.name()) }.getOrElse { it }
+            } ?: decoded.takeIf { it.contains(".mp4", ignoreCase = true) || it.contains(".m3u8", ignoreCase = true) }
+            val finalUrl = direct ?: return
+            val type = if (finalUrl.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+            callback(
+                newExtractorLink(
+                    source = "StreamTales",
+                    name = "StreamTales",
+                    url = finalUrl,
+                    type = type
+                ) {
+                    this.referer = referer ?: url
+                    quality = Qualities.Unknown.value
+                }
+            )
+            emitted = true
+        }
+        suspend fun tryLoadWithReferers(link: String, referers: List<String>) {
+            val refs = referers.filter { it.isNotBlank() }.distinct()
+            if (refs.isEmpty()) {
+                runCatching { loadExtractor(link, link, countingSubtitle, countingCallback) }
+                return
+            }
+            refs.forEach { ref ->
+                val before = emitted
+                runCatching { loadExtractor(link, ref, countingSubtitle, countingCallback) }
+                if (emitted && emitted != before) return
+            }
+        }
+        suspend fun emitFromApiLinks(api: NebryxApiLinks?, apiReferer: String?) {
             if (api == null) return
             val candidates = listOfNotNull(
                 api.link1, api.link2, api.link3, api.link4, api.link5, api.link6, api.link7,
                 api.link1vostfr, api.link2vostfr, api.link3vostfr, api.link4vostfr, api.link5vostfr, api.link6vostfr, api.link7vostfr,
                 api.link1vo, api.link2vo, api.link3vo, api.link4vo, api.link5vo, api.link6vo, api.link7vo
             ).mapNotNull { it.trim().takeIf { url -> url.isNotBlank() } }.distinct()
+            val referers = buildList {
+                apiReferer?.let { add(it) }
+                pageReferer.takeUnless { it == apiReferer }?.let { add(it) }
+                data.url.takeUnless { it.isBlank() }?.let { add(it) }
+            }
             candidates.forEach { link ->
-                if (link.contains("christopheruntilpoint.com", ignoreCase = true)) {
-                    runCatching { handleChristopher(link) }
-                } else {
-                    runCatching {
-                        loadExtractor(link, link, countingSubtitle, countingCallback)
-                        true
+                when {
+                    link.contains("streamtales", ignoreCase = true) -> {
+                        runCatching { handleStreamTales(link, referers.firstOrNull()) }
+                    }
+                    link.contains("christopheruntilpoint.com", ignoreCase = true) -> {
+                        runCatching { handleChristopher(link, referers.firstOrNull()) }
+                    }
+                    else -> {
+                        runCatching { tryLoadWithReferers(link, referers + link) }
                     }
                 }
             }
@@ -994,7 +1035,7 @@ class ConfigDrivenProvider : MainAPI() {
             "movie" -> {
                 val embedUrl = "$embedBase/api/film.php?id=${entry.tmdbId}"
                 logNebryx("movie warm=${embedUrl} referer=${pageReferer}")
-                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie", warmUrl = embedUrl) }.getOrNull())
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "movie", warmUrl = embedUrl) }.getOrNull(), embedUrl)
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 logNebryx("movie playerUrl=${playerUrl}")
                 val okPrimary = runCatching {
@@ -1014,7 +1055,7 @@ class ConfigDrivenProvider : MainAPI() {
                 val episode = entry.episode ?: return false
                 val embedUrl = "$embedBase/api/serie.php?id=${entry.tmdbId}&sa=$season&epi=$episode"
                 logNebryx("tv warm=${embedUrl} referer=${pageReferer}")
-                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv", warmUrl = embedUrl) }.getOrNull())
+                emitFromApiLinks(runCatching { fetchNebryxApiLinks(entry.tmdbId, "tv", warmUrl = embedUrl) }.getOrNull(), embedUrl)
                 val playerUrl = resolveFrembedPlayerUrl(embedUrl, pageReferer)
                 logNebryx("tv playerUrl=${playerUrl}")
                 val okPrimary = runCatching {
