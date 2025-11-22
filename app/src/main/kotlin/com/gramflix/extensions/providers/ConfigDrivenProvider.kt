@@ -979,7 +979,7 @@ class ConfigDrivenProvider : MainAPI() {
                     runCatching { handleChristopher(link) }
                 } else {
                     runCatching {
-                        loadExtractor(link, pageReferer, countingSubtitle, countingCallback)
+                        loadExtractor(link, link, countingSubtitle, countingCallback)
                         true
                     }
                 }
