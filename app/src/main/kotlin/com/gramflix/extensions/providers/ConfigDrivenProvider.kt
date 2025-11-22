@@ -2064,10 +2064,6 @@ class ConfigDrivenProvider : MainAPI() {
         val results = mutableListOf<SearchItem>()
         for (meta in metas) {
             try {
-                if (isCoflix(meta)) {
-                    results += searchCoflix(meta, query)
-                    continue
-                }
                 if (isNebryx(meta)) {
                     results += searchNebryx(meta, query)
                     continue
