@@ -2134,6 +2134,13 @@ class ConfigDrivenProvider : MainAPI() {
                     handled = true
                 }
             }
+            if (isCoflix(meta) && (page == 1 || requestedSlug != null)) {
+                val coflixLists = runCatching { fetchCoflixHome(meta) }.getOrElse { emptyList() }
+                if (coflixLists.isNotEmpty()) {
+                    lists.addAll(coflixLists)
+                    handled = true
+                }
+            }
             if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
                 val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
                 if (apiSections.isNotEmpty()) {
