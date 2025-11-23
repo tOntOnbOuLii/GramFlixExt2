@@ -835,14 +835,16 @@ class ConfigDrivenProvider : MainAPI() {
             }
             for (candidate in nextCandidates) {
                 if (crawl(candidate, url, depth + 1)) return true
-            }
-            if (depth == 0) {
-                return runCatching {
-                    loadExtractor(url, effectiveRef, subtitleCallback, callback)
+                val extracted = runCatching {
+                    loadExtractor(candidate, url, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
+                if (extracted) return true
             }
-            return false
+            return runCatching {
+                loadExtractor(url, effectiveRef, subtitleCallback, callback)
+                true
+            }.getOrElse { false }
         }
 
         return crawl(pageUrl, base)
