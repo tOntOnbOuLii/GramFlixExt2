@@ -2634,7 +2634,6 @@ class ConfigDrivenProvider : MainAPI() {
             } else if (req.url.startsWith("https://", ignoreCase = true)) {
                 urlVariants += req.url.replaceFirst("https://", "http://", ignoreCase = true)
             }
-            var handled = false
             for (ajaxUrl in urlVariants) {
                 val headers = buildHtmlHeaders(
                     ajaxUrl,
@@ -2665,20 +2664,19 @@ class ConfigDrivenProvider : MainAPI() {
                 }
                 for (candidate in links) {
                     val resolved = resolveAgainst(pageUrl, candidate) ?: candidate
+                    val refererForLink = origin
                     val ok = runCatching {
-                        loadExtractor(resolved, pageUrl, subtitleCallback, callback)
+                        loadExtractor(resolved, refererForLink, subtitleCallback, callback)
                         true
                     }.getOrElse { false }
                     if (ok) {
                         success = true
-                        handled = true
                     }
                 }
-                // Do not break early to allow collecting all hosters
             }
             if (!success) {
                 val fallbackOk = runCatching {
-                    loadExtractor(req.url, pageUrl, subtitleCallback, callback)
+                    loadExtractor(req.url, origin, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
                 if (fallbackOk) success = true
@@ -3695,5 +3693,4 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 }
-
 
