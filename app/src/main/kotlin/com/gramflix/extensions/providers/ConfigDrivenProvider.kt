@@ -2547,10 +2547,11 @@ class ConfigDrivenProvider : MainAPI() {
         tvType: TvType = TvType.Movie
     ): SearchItem? {
         rememberSlugForUrl(url, meta.slug)
+        val safeTitle = title.ifBlank { guessTitleFromUrl(url) ?: meta.displayName }
         val displayTitle = if (includeProvider) {
-            "${meta.displayName} - $title"
+            "${meta.displayName} - $safeTitle"
         } else {
-            title
+            safeTitle
         }
         val resolvedType = when (tvType) {
             TvType.Anime -> TvType.Anime
@@ -2573,9 +2574,21 @@ class ConfigDrivenProvider : MainAPI() {
         if (year != null && resolvedType == TvType.Movie) {
             (response as? MovieSearchResponse)?.year = year
         }
-        val score = computeMatchScore(title, query)
+        val score = computeMatchScore(safeTitle, query)
         if (!query.isNullOrBlank() && score <= 0) return null
         return SearchItem(response, score)
+    }
+
+    private fun guessTitleFromUrl(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        val segment = runCatching { URI(url).path }.getOrNull()
+            ?.trim('/')
+            ?.substringAfterLast('/')
+            ?.substringBeforeLast('.')
+            ?: return null
+        val decoded = runCatching { URLDecoder.decode(segment, "UTF-8") }.getOrNull() ?: segment
+        val cleaned = decoded.replace('-', ' ').replace('_', ' ').trim()
+        return cleaned.takeIf { it.isNotBlank() }
     }
 
     private fun parseCineplateformeAjax(doc: Document, baseUrl: String): List<AjaxRequest> {
@@ -2659,10 +2672,9 @@ class ConfigDrivenProvider : MainAPI() {
                     if (ok) {
                         success = true
                         handled = true
-                        break
                     }
                 }
-                if (handled) break
+                // Do not break early to allow collecting all hosters
             }
             if (!success) {
                 val fallbackOk = runCatching {
@@ -2958,9 +2970,12 @@ class ConfigDrivenProvider : MainAPI() {
                 val mergedSections = LinkedHashMap<String, HomePageList>()
                 fun addSections(sections: List<HomePageList>) {
                     sections.forEach { section ->
-                        val key = section.name.trim().lowercase(Locale.ROOT)
+                        val sectionName = if (meta.displayName.isNotBlank()) {
+                            "${meta.displayName} - ${section.name}"
+                        } else section.name
+                        val key = sectionName.trim().lowercase(Locale.ROOT)
                         if (key.isNotBlank() && !mergedSections.containsKey(key)) {
-                            mergedSections[key] = section
+                            mergedSections[key] = HomePageList(sectionName, section.list)
                         }
                     }
                 }
