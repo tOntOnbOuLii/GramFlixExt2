@@ -2577,6 +2577,63 @@ class ConfigDrivenProvider : MainAPI() {
         return SearchItem(response, score)
     }
 
+    private fun parseCineplateformeAjax(doc: Document, baseUrl: String): List<AjaxRequest> {
+        val regex = Regex("""getxfield\(\s*'(\d+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)""", RegexOption.IGNORE_CASE)
+        val requests = linkedSetOf<AjaxRequest>()
+        val onclickElements = doc.select("[onclick*=\"getxfield\"]")
+        onclickElements.forEach { element ->
+            val onclick = element.attr("onclick")
+            regex.findAll(onclick).forEach { match ->
+                val id = match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@forEach
+                val xfield = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() } ?: return@forEach
+                val token = match.groupValues.getOrNull(3)?.takeIf { it.isNotBlank() } ?: return@forEach
+                val url = "${baseUrl.trimEnd('/')}/engine/ajax/getxfield.php?id=$id&xfield=$xfield&token=$token"
+                requests += AjaxRequest(url, baseUrl)
+            }
+        }
+        return requests.toList()
+    }
+
+    private suspend fun loadCineplateformeLinks(
+        meta: ProviderMeta,
+        pageUrl: String,
+        doc: Document,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val requests = parseCineplateformeAjax(doc, meta.baseUrl)
+        if (requests.isEmpty()) return false
+        var success = false
+        for (req in requests) {
+            val ajaxDoc = runCatching { fetchHtml(req.url, referer = pageUrl) }.getOrNull()?.document ?: continue
+            val html = ajaxDoc.outerHtml()
+            val direct = extractFirstMediaUrl(html)
+            val iframe = ajaxDoc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
+            val target = direct ?: iframe
+            if (!target.isNullOrBlank()) {
+                val resolved = resolveAgainst(pageUrl, target) ?: target
+                val ok = runCatching {
+                    loadExtractor(resolved, pageUrl, subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+                if (ok) success = true
+                continue
+            }
+            ajaxDoc.select("a[href]").forEach { anchor ->
+                val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+                if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
+                    val resolved = resolveAgainst(pageUrl, href) ?: href
+                    val ok = runCatching {
+                        loadExtractor(resolved, pageUrl, subtitleCallback, callback)
+                        true
+                    }.getOrElse { false }
+                    if (ok) success = true
+                }
+            }
+        }
+        return success
+    }
+
     private fun resolveHref(card: Element, rule: Rule, baseUrl: String): String? {
         val parts = rule.urlSel.split("@", limit = 2)
         val cssRaw = parts.getOrNull(0)?.trim()
@@ -3238,13 +3295,17 @@ class ConfigDrivenProvider : MainAPI() {
             if (meta != null) {
                 rememberSlugForUrl(pageUrl, meta.slug)
             }
+            val referer = meta?.baseUrl ?: pageUrl
+            val response = fetchHtml(pageUrl, referer = referer)
+            val doc = response.document
+            if (meta?.slug?.equals("cineplateforme", ignoreCase = true) == true) {
+                val okCine = runCatching { loadCineplateformeLinks(meta, pageUrl, doc, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
+                if (okCine) return true
+            }
             if (isFrenchTv(meta) || normalizeHost(pageUrl)?.contains("fstv.", ignoreCase = true) == true) {
                 val ok = runCatching { loadFrenchTvPlayer(pageUrl, meta?.baseUrl, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
                 if (ok) return true
             }
-            val referer = meta?.baseUrl ?: pageUrl
-            val response = fetchHtml(pageUrl, referer = referer)
-            val doc = response.document
             val ajaxConfig = parseAjaxConfig(doc, pageUrl)
             val ajaxEmbeds = fetchAjaxEmbeds(doc, pageUrl, ajaxConfig)
             val candidates = linkedSetOf<String>()
