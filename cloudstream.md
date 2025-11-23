@@ -12,6 +12,8 @@
 - Rebuilds : v54 (API hosters + extractor Christopher), v55 (endpoint api/films), v56 (warm-up cookies + headers). Commits : b63eb02, e311e48, 3be3bb5, f75d1d0.
 - Rebuild v57 avec logs Nebryx (warm-up/api/films) pour diagnostiquer l'absence de liens.
 - Rebuild v58 : force les referers Frembed/Nebryx sur chaque lien API (uqload/netu/dsvplay/streamtales) + ajout patterns hosters pour afficher les bons labels. Fonctionnel sur mobile + emulateur.
+- Rebuild v59 : Home FrenchTVLive nettoyée (sections chaînes avec cartes au lieu de boutons “Lire” vides).
+- Rebuild v60 : Player FrenchTVLive (fstv) : extraction iframe `/player/fsplayer.php?id=...`, détection m3u8/mp4 dans la page/iframe + fallback loadExtractor, referer fstv. Plugin 60 (artefacts 136336o).
 
 ## A verifier / a faire
 - Nebryx : surveiller si certains liens Frembed tombent (403/Too short playback) -> logger l'extractor raté et referer utilisé.
@@ -20,3 +22,4 @@
 - Nettoyer fichiers temporaires avant release finale.
 - Revalider Nebryx en accueil/recherche pour la separation.
 - Revalider hosters dsvplay/netu/uqload/streamtales si certains 403 persistent (headers/referer specifiques au besoin).
+- FrenchTVLive : surveiller si certaines chaînes fsplayer nécessitent un referer/UA spécifique; logger si “aucun lien” revient.
