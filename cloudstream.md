@@ -23,3 +23,8 @@
 - Revalider Nebryx en accueil/recherche pour la separation.
 - Revalider hosters dsvplay/netu/uqload/streamtales si certains 403 persistent (headers/referer specifiques au besoin).
 - FrenchTVLive : surveiller si certaines chaînes fsplayer nécessitent un referer/UA spécifique; logger si “aucun lien” revient.
+
+## Rappels indispensables pour chaque session
+- Toujours répondre en français.
+- À chaque modification, incrémenter le numéro de version dans `plugins.json` et ajuster le `fileSize` en cohérence avec les artefacts.
+- Si nécessaire, lancer le build (`:app:make`), copier `app/build/app.cs3` vers `gramflix-all.cs3` et `gramflix-1jour1film.cs3`, puis push sur GitHub.
