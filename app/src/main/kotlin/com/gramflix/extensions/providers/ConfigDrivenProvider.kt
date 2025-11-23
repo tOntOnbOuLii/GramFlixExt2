@@ -191,7 +191,7 @@ class ConfigDrivenProvider : MainAPI() {
         private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
         private const val FRENCH_TV_LIVE_SLUG = "frenchtvlive"
         private const val FRENCH_TV_SOURCE = "FrenchTVLive"
-        private const val HOME_CACHE_TTL_MS = 10 * 60 * 1000L
+        private const val HOME_CACHE_TTL_MS = 30 * 60 * 1000L
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
         private const val TMDB_CACHE_TTL_MS = 10 * 60 * 1000L
@@ -750,10 +750,13 @@ class ConfigDrivenProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val base = referer ?: pageUrl
-        val doc = fetchHtml(pageUrl, referer = base).document
-        val iframe = doc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
-        val htmlText = doc.outerHtml()
-        val direct = extractFirstMediaUrl(htmlText)
+        val visited = hashSetOf<String>()
+
+        fun normalizeMediaUrl(raw: String): String {
+            if (raw.startsWith("//")) return "https:${raw.removePrefix("//")}"
+            return raw
+        }
+
         suspend fun emit(url: String, ref: String) {
             val type = if (url.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
             callback(
@@ -768,27 +771,81 @@ class ConfigDrivenProvider : MainAPI() {
                 }
             )
         }
-        if (!direct.isNullOrBlank()) {
-            emit(direct, base)
-            return true
+
+        fun extractProtocolRelative(text: String?): String? {
+            if (text.isNullOrBlank()) return null
+            val rel = Regex("""["'](//[^"'\\s]+\\.(?:m3u8|mpd|mp4)[^"'\\s]*)["']""", RegexOption.IGNORE_CASE)
+                .find(text)?.groupValues?.getOrNull(1)
+            return rel?.let { "https:${it.removePrefix("//")}" }
         }
-        if (!iframe.isNullOrBlank()) {
-            val resolved = resolveAgainst(pageUrl, iframe) ?: iframe
-            val iframeDoc = fetchHtml(resolved, referer = pageUrl).document
-            val media = extractFirstMediaUrl(iframeDoc.outerHtml())
-                ?: iframeDoc.selectFirst("video source[src]")?.absUrl("src")?.ifBlank { null }
-                ?: iframeDoc.selectFirst("video[src]")?.absUrl("src")?.ifBlank { null }
+
+        fun extractBase64Media(text: String?): String? {
+            if (text.isNullOrBlank()) return null
+            val regex = Regex("""[A-Za-z0-9+/=]{40,}""")
+            for (match in regex.findAll(text)) {
+                val decoded = runCatching { String(Base64.getDecoder().decode(match.value)) }.getOrNull() ?: continue
+                val url = extractFirstMediaUrl(decoded) ?: extractProtocolRelative(decoded)
+                if (!url.isNullOrBlank()) return url
+            }
+            return null
+        }
+
+        fun pickMedia(html: String, doc: Document): String? {
+            extractFirstMediaUrl(html)?.let { return it }
+            extractProtocolRelative(html)?.let { return it }
+            extractBase64Media(html)?.let { return it }
+            doc.selectFirst("video source[src]")?.absUrl("src")?.ifBlank { null }?.let { return it }
+            doc.selectFirst("video[src]")?.absUrl("src")?.ifBlank { null }?.let { return it }
+            doc.select("a[href]").firstOrNull { link ->
+                val href = link.absUrl("href")
+                href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)
+            }?.absUrl("href")?.ifBlank { null }?.let { return it }
+            return null
+        }
+
+        suspend fun crawl(url: String, ref: String?, depth: Int = 0): Boolean {
+            if (depth > 3) return false
+            val normalized = canonicalizeUrl(url)
+            if (!visited.add(normalized)) return false
+            val effectiveRef = ref ?: url
+            val response = runCatching { fetchHtml(url, referer = effectiveRef) }.getOrNull() ?: return false
+            val html = response.text
+            val doc = response.document
+            val media = pickMedia(html, doc)
             if (!media.isNullOrBlank()) {
-                emit(media, resolved)
+                emit(normalizeMediaUrl(media), effectiveRef)
                 return true
             }
-            // as fallback, try extractor on the iframe itself
-            return runCatching {
-                loadExtractor(resolved, pageUrl, subtitleCallback, callback)
-                true
-            }.getOrElse { false }
+            val nextCandidates = linkedSetOf<String>()
+            doc.select("iframe[src], video[src], source[src]").forEach { element ->
+                val raw = element.absUrl("src").ifBlank { element.attr("src") }
+                val resolved = resolveAgainst(url, raw)?.takeIf { it.isNotBlank() } ?: raw
+                if (resolved.startsWith("http", ignoreCase = true)) {
+                    nextCandidates += resolved
+                }
+            }
+            doc.select("a[href]").forEach { anchor ->
+                val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+                if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
+                    val resolved = resolveAgainst(url, href) ?: href
+                    if (resolved.startsWith("http", ignoreCase = true)) {
+                        nextCandidates += resolved
+                    }
+                }
+            }
+            for (candidate in nextCandidates) {
+                if (crawl(candidate, url, depth + 1)) return true
+            }
+            if (depth == 0) {
+                return runCatching {
+                    loadExtractor(url, effectiveRef, subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+            }
+            return false
         }
-        return false
+
+        return crawl(pageUrl, base)
     }
 
     private fun buildCoflixHomeItems(meta: ProviderMeta, array: org.json.JSONArray?, tvType: TvType): List<SearchResponse> {
@@ -2798,10 +2855,25 @@ class ConfigDrivenProvider : MainAPI() {
                 }
             }
             if (page == 1 && meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
+                val mergedSections = LinkedHashMap<String, HomePageList>()
+                fun addSections(sections: List<HomePageList>) {
+                    sections.forEach { section ->
+                        val key = section.name.trim().lowercase(Locale.ROOT)
+                        if (key.isNotBlank() && !mergedSections.containsKey(key)) {
+                            mergedSections[key] = section
+                        }
+                    }
+                }
                 val apiSections = runCatching { fetchOneJourHomeFromApi(meta) }.getOrElse { emptyList() }
-                if (apiSections.isNotEmpty()) {
-                    lists.addAll(apiSections)
-                    handled = true
+                addSections(apiSections)
+                val htmlSections = runCatching {
+                    val response = fetchHtml(meta.baseUrl, referer = null)
+                    extractOneJourHome(meta, response.document, dedupe)
+                }.getOrElse { emptyList() }
+                addSections(htmlSections)
+                if (mergedSections.isNotEmpty()) {
+                    lists.addAll(mergedSections.values)
+                    return finalizeWithCache()
                 }
             }
             if (handled) return finalizeWithCache()
@@ -2816,13 +2888,6 @@ class ConfigDrivenProvider : MainAPI() {
             if (responses.isNotEmpty()) {
                 lists += HomePageList(meta.displayName, responses)
                 return finalizeWithCache()
-            }
-            if (meta.slug.equals("1JOUR1FILM", ignoreCase = true)) {
-                val fallbackSections = extractOneJourHome(meta, doc, dedupe)
-                if (fallbackSections.isNotEmpty()) {
-                    lists.addAll(fallbackSections)
-                    return finalizeWithCache()
-                }
             }
             false
         } catch (_: Throwable) {
@@ -2842,7 +2907,7 @@ class ConfigDrivenProvider : MainAPI() {
             if (requestedSlug == null || requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true)) emptyList() else metas
         }
 
-        val pageSize = 5
+        val pageSize = 3
         val lists = mutableListOf<HomePageList>()
         var hasNextProviders = false
         if (filteredMetas.isNotEmpty()) {
@@ -3419,10 +3484,10 @@ class ConfigDrivenProvider : MainAPI() {
 
     private suspend fun fetchOneJourHomeFromApi(meta: ProviderMeta): List<HomePageList> {
         val apiBase = resolveApiBase(meta.baseUrl) ?: return emptyList()
-        val movies = fetchWpCollection(meta, apiBase, "movies", 20, TvType.Movie)
-        val shows = fetchWpCollection(meta, apiBase, "tvshows", 20, TvType.TvSeries)
-        val seasons = fetchWpCollection(meta, apiBase, "seasons", 20, TvType.TvSeries)
-        val episodes = fetchWpCollection(meta, apiBase, "episodes", 20, TvType.TvSeries)
+        val movies = fetchWpCollection(meta, apiBase, "movies", 50, TvType.Movie)
+        val shows = fetchWpCollection(meta, apiBase, "tvshows", 50, TvType.TvSeries)
+        val seasons = fetchWpCollection(meta, apiBase, "seasons", 50, TvType.TvSeries)
+        val episodes = fetchWpCollection(meta, apiBase, "episodes", 50, TvType.TvSeries)
 
         val sections = mutableListOf<HomePageList>()
 
