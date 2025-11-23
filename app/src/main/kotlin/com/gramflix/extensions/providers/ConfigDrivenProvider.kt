@@ -189,6 +189,7 @@ class ConfigDrivenProvider : MainAPI() {
         private const val DEFAULT_NEBRYX_BASE = "https://nebryx.fr"
         private const val FREMBED_SLUG = "frembed"
         private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
+        private const val FRENCH_TV_LIVE_SLUG = "frenchtvlive"
         private const val HOME_CACHE_TTL_MS = 10 * 60 * 1000L
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
@@ -677,6 +678,57 @@ class ConfigDrivenProvider : MainAPI() {
             )
             if (entries.isNotEmpty()) {
                 sections += HomePageList("${meta.displayName} - $label", entries)
+            }
+        }
+        return sections
+    }
+
+    private suspend fun fetchFrenchTvHome(meta: ProviderMeta): List<HomePageList> {
+        val sections = mutableListOf<HomePageList>()
+        val dedupe = hashSetOf<String>()
+        val response = fetchHtml(meta.baseUrl, referer = null)
+        val doc = response.document
+        for (sect in doc.select("div.sect")) {
+            val sectionTitle = sect.selectFirst(".st-left .st-capt")
+                ?.text()
+                ?.trim()
+                ?.ifBlank { null }
+                ?: meta.displayName
+            val items = mutableListOf<SearchResponse>()
+            for (card in sect.select("div.short")) {
+                val anchor = card.selectFirst("a.short-poster[href]") ?: continue
+                val rawHref = anchor.attr("href")
+                val href = resolveAgainst(meta.baseUrl, rawHref) ?: anchor.absUrl("href")
+                if (href.isBlank()) continue
+                val normalizedHref = canonicalizeUrl(href)
+                if (!dedupe.add(normalizedHref)) continue
+                val title = card.selectFirst(".short-title")
+                    ?.text()
+                    ?.trim()
+                    ?.ifBlank { null }
+                    ?: anchor.attr("alt").takeIf { it.isNotBlank() }
+                    ?: anchor.text().takeIf { it.isNotBlank() }
+                    ?: meta.displayName
+                val poster = card.selectFirst("img")
+                    ?.let { img ->
+                        sequenceOf("data-src", "data-original", "src")
+                            .mapNotNull { attr -> img.attr(attr).takeIf { it.isNotBlank() } }
+                            .firstOrNull()
+                    }
+                    ?.let { resolveAgainst(meta.baseUrl, it) ?: it }
+                val item = createSearchItem(
+                    meta = meta,
+                    title = title,
+                    url = normalizedHref,
+                    poster = poster,
+                    includeProvider = false,
+                    query = null,
+                    tvType = TvType.TvSeries
+                ) ?: continue
+                items += item.response
+            }
+            if (items.isNotEmpty()) {
+                sections += HomePageList("${meta.displayName} - $sectionTitle", items)
             }
         }
         return sections
@@ -1208,6 +1260,9 @@ class ConfigDrivenProvider : MainAPI() {
 
     private fun isNebryxSlug(slug: String?): Boolean =
         slug?.equals(NEBRYX_SLUG, ignoreCase = true) == true
+
+    private fun isFrenchTv(meta: ProviderMeta?): Boolean =
+        meta?.slug?.equals(FRENCH_TV_LIVE_SLUG, ignoreCase = true) == true
 
     private fun nebryxBaseUrl(): String {
         val candidate = RemoteConfig
@@ -2668,6 +2723,13 @@ class ConfigDrivenProvider : MainAPI() {
                 val nebryxLists = runCatching { fetchNebryxHome(meta) }.getOrElse { emptyList() }
                 if (nebryxLists.isNotEmpty()) {
                     lists.addAll(nebryxLists)
+                    handled = true
+                }
+            }
+            if (isFrenchTv(meta) && (page == 1 || requestedSlug != null)) {
+                val frenchTvLists = runCatching { fetchFrenchTvHome(meta) }.getOrElse { emptyList() }
+                if (frenchTvLists.isNotEmpty()) {
+                    lists.addAll(frenchTvLists)
                     handled = true
                 }
             }
