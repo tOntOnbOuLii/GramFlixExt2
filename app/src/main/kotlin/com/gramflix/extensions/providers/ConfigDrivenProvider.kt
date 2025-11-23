@@ -1874,29 +1874,8 @@ class ConfigDrivenProvider : MainAPI() {
     }
 
     private fun loadHomeFallback(): List<HomePageList> {
-        val sections = HomeConfig.sectionsArray() ?: return emptyList()
-        val lists = mutableListOf<HomePageList>()
-        for (i in 0 until sections.length()) {
-            val section = sections.optJSONObject(i) ?: continue
-            val name = section.optString("name").ifBlank { "GramFlix" }
-            val items = section.optJSONArray("items") ?: continue
-            val responses = mutableListOf<SearchResponse>()
-            for (j in 0 until items.length()) {
-                val item = items.optJSONObject(j) ?: continue
-                val imdbId = item.optString("imdbId")
-                val title = item.optString("title")
-                if (imdbId.isBlank() || title.isBlank()) continue
-                val poster = item.optString("poster").takeIf { it.isNotBlank() }
-                val year = item.optInt("year").takeIf { it > 0 }
-                val imdbItem = ImdbItem(imdbId, title, poster, year)
-                cacheImdbItem(imdbItem)
-                responses += buildFallbackSearchResponse(imdbItem)
-            }
-            if (responses.isNotEmpty()) {
-                lists += HomePageList(name, responses)
-            }
-        }
-        return lists
+        // Désactivé pour éviter les sections IMDB de secours
+        return emptyList()
     }
 
     private fun collectSelectorValues(card: Element, selector: String): List<String> {

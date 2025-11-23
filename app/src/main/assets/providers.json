@@ -57,6 +57,10 @@
             "name": "French stream",
             "baseUrl": "https://fs-miroir6.lol"
         },
+        "Wiflix": {
+            "name": "Wiflix",
+            "baseUrl": "https://wiflix.yachts"
+        },
         "FrenchTVLive": {
             "name": "French TV LIVE",
             "baseUrl": "https://fstv.lol"
