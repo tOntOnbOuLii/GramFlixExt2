@@ -2662,9 +2662,26 @@ class ConfigDrivenProvider : MainAPI() {
                         links += href
                     }
                 }
-                for (candidate in links) {
+                val prioritized = links
+                    .sortedWith(
+                        compareBy<String> { url ->
+                            when {
+                                url.contains("voe", true) -> 0
+                                url.contains("filemoon", true) -> 1
+                                url.contains("dood", true) || url.contains("dsvplay", true) -> 2
+                                url.contains("netu", true) || url.contains("younetu", true) -> 3
+                                url.contains("vidoza", true) -> 4
+                                url.contains("uqload", true) -> 10 // évite de bloquer longtemps
+                                else -> 5
+                            }
+                        }
+                    )
+                    .distinct()
+                    .take(6)
+                for (candidate in prioritized) {
+                    if (candidate.contains("uqload", ignoreCase = true)) continue
                     val resolved = resolveAgainst(pageUrl, candidate) ?: candidate
-                    val refererForLink = origin
+                    val refererForLink = pageUrl
                     val ok = runCatching {
                         loadExtractor(resolved, refererForLink, subtitleCallback, callback)
                         true
@@ -2676,7 +2693,7 @@ class ConfigDrivenProvider : MainAPI() {
             }
             if (!success) {
                 val fallbackOk = runCatching {
-                    loadExtractor(req.url, origin, subtitleCallback, callback)
+                    loadExtractor(req.url, pageUrl, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
                 if (fallbackOk) success = true
@@ -3693,4 +3710,3 @@ class ConfigDrivenProvider : MainAPI() {
         }
     }
 }
-
