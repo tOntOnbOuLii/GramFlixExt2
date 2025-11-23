@@ -2605,7 +2605,13 @@ class ConfigDrivenProvider : MainAPI() {
         if (requests.isEmpty()) return false
         var success = false
         for (req in requests) {
-            val ajaxDoc = runCatching { fetchHtml(req.url, referer = pageUrl) }.getOrNull()?.document ?: continue
+            val ajaxDoc = runCatching {
+                fetchHtml(
+                    req.url,
+                    referer = pageUrl,
+                    extraHeaders = mapOf("X-Requested-With" to "XMLHttpRequest")
+                )
+            }.getOrNull()?.document ?: continue
             val html = ajaxDoc.outerHtml()
             val direct = extractFirstMediaUrl(html)
             val iframe = ajaxDoc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
@@ -2629,6 +2635,13 @@ class ConfigDrivenProvider : MainAPI() {
                     }.getOrElse { false }
                     if (ok) success = true
                 }
+            }
+            if (!success) {
+                val fallbackOk = runCatching {
+                    loadExtractor(req.url, pageUrl, subtitleCallback, callback)
+                    true
+                }.getOrElse { false }
+                if (fallbackOk) success = true
             }
         }
         return success
