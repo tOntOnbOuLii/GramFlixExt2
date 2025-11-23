@@ -62,7 +62,7 @@ class ConfigDrivenProvider : MainAPI() {
         get() {
             ensureRemoteConfigs()
             HomeConfig.ensureLoaded()
-            val metas = gatherProviders()
+            val metas = gatherProviders().filter { it.showOnHome }
             val entries = metas.map { meta ->
                 MainPageData(meta.displayName, meta.slug, horizontalImages = false)
             }
@@ -91,7 +91,8 @@ class ConfigDrivenProvider : MainAPI() {
         val slug: String,
         val displayName: String,
         val baseUrl: String,
-        val rule: Rule?
+        val rule: Rule?,
+        val showOnHome: Boolean = true
     )
 
     private data class HosterPattern(
@@ -1369,11 +1370,13 @@ class ConfigDrivenProvider : MainAPI() {
             val info = providers.optJSONObject(slug) ?: continue
             val baseUrl = info.optString("baseUrl").takeIf { it.isNotBlank() } ?: continue
             val displayName = info.optString("name").takeIf { it.isNotBlank() } ?: slug
+            val showOnHome = info.optBoolean("showOnHome", true)
             list += ProviderMeta(
                 slug = slug,
                 displayName = displayName,
                 baseUrl = baseUrl,
-                rule = parseRule(slug)
+                rule = parseRule(slug),
+                showOnHome = showOnHome
             )
         }
         return list.sortedWith(
@@ -3019,7 +3022,7 @@ class ConfigDrivenProvider : MainAPI() {
         val metas = gatherProviders()
         val requestedSlug = request.data?.takeIf { it.isNotBlank() }
         val filteredMetas = when {
-            requestedSlug == null -> metas
+            requestedSlug == null -> metas.filter { it.showOnHome }
             requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true) -> emptyList()
             else -> metas.filter { it.slug.equals(requestedSlug, ignoreCase = true) }
         }.ifEmpty {
