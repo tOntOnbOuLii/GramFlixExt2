@@ -29,6 +29,7 @@ import com.gramflix.extensions.config.HomeConfig
 import com.gramflix.extensions.config.HostersConfig
 import org.json.JSONArray
 import org.json.JSONObject
+import okhttp3.Headers
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.Jsoup
@@ -2598,6 +2599,7 @@ class ConfigDrivenProvider : MainAPI() {
         meta: ProviderMeta,
         pageUrl: String,
         doc: Document,
+        pageHeaders: Headers?,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
@@ -2606,47 +2608,61 @@ class ConfigDrivenProvider : MainAPI() {
         val requests = parseCineplateformeAjax(doc, origin)
         if (requests.isEmpty()) return false
         var success = false
+        val cookieHeader = ((pageHeaders?.values("set-cookie") ?: emptyList()) + (pageHeaders?.values("cookie") ?: emptyList()))
+            .map { it.substringBefore(";") }
+            .filter { it.isNotBlank() }
+            .joinToString("; ")
+            .ifBlank { null }
         for (req in requests) {
-            val ajaxResponse = runCatching {
-                app.get(
-                    req.url,
-                    referer = pageUrl,
-                    headers = buildHtmlHeaders(
-                        req.url,
-                        pageUrl,
-                        mapOf(
-                            "X-Requested-With" to "XMLHttpRequest",
-                            "Origin" to origin
-                        )
-                    )
-                )
-            }.getOrNull() ?: continue
-            val body = ajaxResponse.text ?: ""
-            fun protocolRelative(u: String?): String? =
-                u?.takeIf { it.startsWith("//") }?.let { "https:${it.removePrefix("//")}" }
-
-            val direct = extractFirstMediaUrl(body) ?: protocolRelative(body)
-            val ajaxDoc = ajaxResponse.document
-            val iframe = ajaxDoc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
-            val target = direct ?: iframe
-            val links = linkedSetOf<String>()
-            target?.let { links += it }
-            ajaxDoc.select("a[href]").forEach { anchor ->
-                val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
-                if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
-                    links += href
-                }
+            val urlVariants = linkedSetOf(req.url)
+            if (req.url.startsWith("https://www.", ignoreCase = true)) {
+                urlVariants += req.url.replaceFirst("https://www.", "https://", ignoreCase = true)
+                urlVariants += req.url.replaceFirst("https://www.", "http://", ignoreCase = true)
+            } else if (req.url.startsWith("https://", ignoreCase = true)) {
+                urlVariants += req.url.replaceFirst("https://", "http://", ignoreCase = true)
             }
-            for (candidate in links) {
-                val resolved = resolveAgainst(pageUrl, candidate) ?: candidate
-                val ok = runCatching {
-                    loadExtractor(resolved, pageUrl, subtitleCallback, callback)
-                    true
-                }.getOrElse { false }
-                if (ok) {
-                    success = true
-                    break
+            var handled = false
+            for (ajaxUrl in urlVariants) {
+                val headers = buildHtmlHeaders(
+                    ajaxUrl,
+                    pageUrl,
+                    buildMap {
+                        put("X-Requested-With", "XMLHttpRequest")
+                        put("Origin", origin)
+                        if (cookieHeader != null) put("Cookie", cookieHeader)
+                    }
+                )
+                val ajaxResponse = runCatching { app.get(ajaxUrl, referer = pageUrl, headers = headers) }.getOrNull()
+                if (ajaxResponse == null) continue
+                val body = ajaxResponse.text ?: ""
+                fun protocolRelative(u: String?): String? =
+                    u?.takeIf { it.startsWith("//") }?.let { "https:${it.removePrefix("//")}" }
+
+                val direct = extractFirstMediaUrl(body) ?: protocolRelative(body)
+                val ajaxDoc = ajaxResponse.document
+                val iframe = ajaxDoc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
+                val target = direct ?: iframe
+                val links = linkedSetOf<String>()
+                target?.let { links += it }
+                ajaxDoc.select("a[href]").forEach { anchor ->
+                    val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+                    if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
+                        links += href
+                    }
                 }
+                for (candidate in links) {
+                    val resolved = resolveAgainst(pageUrl, candidate) ?: candidate
+                    val ok = runCatching {
+                        loadExtractor(resolved, pageUrl, subtitleCallback, callback)
+                        true
+                    }.getOrElse { false }
+                    if (ok) {
+                        success = true
+                        handled = true
+                        break
+                    }
+                }
+                if (handled) break
             }
             if (!success) {
                 val fallbackOk = runCatching {
@@ -3324,7 +3340,7 @@ class ConfigDrivenProvider : MainAPI() {
             val response = fetchHtml(pageUrl, referer = referer)
             val doc = response.document
             if (meta?.slug?.equals("cineplateforme", ignoreCase = true) == true) {
-                val okCine = runCatching { loadCineplateformeLinks(meta, pageUrl, doc, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
+                val okCine = runCatching { loadCineplateformeLinks(meta, pageUrl, doc, response.headers, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
                 if (okCine) return true
             }
             if (isFrenchTv(meta) || normalizeHost(pageUrl)?.contains("fstv.", ignoreCase = true) == true) {
