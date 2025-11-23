@@ -14,7 +14,7 @@
         "BuzzMonclick": {
             "name": "BuzzMonclick",
             "baseUrl": "https://buzzmonclick.io",
-            "showOnHome": true
+            "showOnHome": false
         },
         "CinePlateforme": {
             "name": "CinePlateforme",
