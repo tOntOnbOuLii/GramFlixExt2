@@ -168,6 +168,8 @@ class ConfigDrivenProvider : MainAPI() {
         val link7vo: String?
     )
 
+    private val homePrioritySlugs = listOf("frenchstream", "wiflix")
+
     companion object {
         private const val BROWSER_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
@@ -1353,6 +1355,11 @@ class ConfigDrivenProvider : MainAPI() {
         }.getOrDefault(embedUrl)
     }
 
+    private fun providerPriority(slug: String): Int {
+        val idx = homePrioritySlugs.indexOfFirst { it.equals(slug, ignoreCase = true) }
+        return if (idx >= 0) idx else homePrioritySlugs.size
+    }
+
     private fun gatherProviders(): List<ProviderMeta> {
         val providers = RemoteConfig.providersObject() ?: return emptyList()
         val list = mutableListOf<ProviderMeta>()
@@ -1369,7 +1376,10 @@ class ConfigDrivenProvider : MainAPI() {
                 rule = parseRule(slug)
             )
         }
-        return list.sortedBy { it.displayName.lowercase(Locale.ROOT) }
+        return list.sortedWith(
+            compareBy<ProviderMeta> { providerPriority(it.slug) }
+                .thenBy { it.displayName.lowercase(Locale.ROOT) }
+        )
     }
 
     private fun isNebryx(meta: ProviderMeta?): Boolean =
