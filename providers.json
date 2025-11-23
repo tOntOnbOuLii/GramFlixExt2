@@ -126,11 +126,6 @@
             "baseUrl": "https://purstream.to",
             "showOnHome": true
         },
-        "RechercheStream": {
-            "name": "Recherche-stream",
-            "baseUrl": "https://recherche-stream.xyz/site",
-            "showOnHome": true
-        },
         "Sadisflix": {
             "name": "Sadisflix",
             "baseUrl": "https://sadisflix-officiel.com",
@@ -164,16 +159,6 @@
         "WowFilms": {
             "name": "WoW-Films",
             "baseUrl": "https://wowfilms1025.site",
-            "showOnHome": true
-        },
-        "XalaFlix": {
-            "name": "XalaFlix",
-            "baseUrl": "https://xalaflix.eu.com",
-            "showOnHome": true
-        },
-        "YopFlix": {
-            "name": "YopFlix",
-            "baseUrl": "https://yopflix.my",
             "showOnHome": true
         }
     }
