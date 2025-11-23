@@ -28,9 +28,9 @@
         "cineplateforme": {
             "searchPath": "?s=",
             "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
+            "itemSel": "article.movie-box",
+            "titleSel": ".movie-details .name a, .name a, .title",
+            "urlSel": ".movie-details .name a@href",
             "embedSel": "iframe@src"
         },
         "cinepulse": {

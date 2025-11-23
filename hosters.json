@@ -55,7 +55,7 @@
         },
         "doodstream": {
             "name": "Doodstream",
-            "url": "https://*.doodstream.com/*"
+            "url": "https://*.doodstream.com/*, https://*.dsvplay.com/*"
         },
         "easyvidplayer": {
             "name": "EasyVidPlayer",
@@ -95,7 +95,7 @@
         },
         "filemoon": {
             "name": "Filemoon",
-            "url": "https://*.filemoon.sx/*"
+            "url": "https://*.filemoon.sx/*, https://*.lukefirst.lol/*"
         },
         "flexydrive": {
             "name": "FlexyDrive",
@@ -163,7 +163,7 @@
         },
         "netu": {
             "name": "Netu",
-            "url": "https://*.netu.tv/*"
+            "url": "https://*.netu.tv/*, https://*.younetu.org/*"
         },
         "odyssee": {
             "name": "Odysee",
@@ -311,7 +311,7 @@
         },
         "voe": {
             "name": "VOE",
-            "url": "https://*.voe.sx/*"
+            "url": "https://*.voe.sx/*, https://*.ralphysuccessfull.org/*"
         },
         "wetransfer": {
             "name": "WeTransfer",
