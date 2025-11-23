@@ -163,7 +163,7 @@
         },
         "netu": {
             "name": "Netu",
-            "url": "https://*.netu.tv/*, https://*.fremtv.*/*"
+            "url": "https://*.netu.tv/*"
         },
         "odyssee": {
             "name": "Odysee",
@@ -232,10 +232,6 @@
         "streamwish": {
             "name": "StreamWish",
             "url": "https://*.streamwish.to/*"
-        },
-        "streamtales": {
-            "name": "StreamTales",
-            "url": "https://*.streamtales.cc/*, https://*.video.streamtales.cc/*"
         },
         "strmupcdn": {
             "name": "StrmupCDN",
@@ -400,10 +396,6 @@
         "dropbox": {
             "name": "Dropbox",
             "url": "https://*.dropbox.com/*"
-        },
-        "dsvplay": {
-            "name": "Doodstream",
-            "url": "https://*.dsvplay.com/*"
         },
         "pcloud": {
             "name": "pCloud",
