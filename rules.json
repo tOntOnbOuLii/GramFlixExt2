@@ -233,6 +233,14 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
+        "wiflix": {
+            "searchPath": "?s=",
+            "searchParam": "s",
+            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
         "wookafr": {
             "searchPath": "search?q=",
             "searchParam": "q",
