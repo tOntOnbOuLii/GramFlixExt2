@@ -27,7 +27,7 @@
         },
         "coflix": {
             "name": "CoFliX",
-            "baseUrl": "https://coflix.si"
+            "baseUrl": "https://coflix.day"
         },
         "cpasmal": {
             "name": "CPasMal",
@@ -89,13 +89,9 @@
             "name": "PapaduStream",
             "baseUrl": "https://papadustream.garden"
         },
-        "purstream": {
-            "name": "Purstream",
-            "baseUrl": "https://purstream.to"
-        },
-        "recherchestream": {
-            "name": "Recherche-stream",
-            "baseUrl": "https://recherche-stream.xyz/site"
+        "moiflix": {
+            "name": "MoiFliX",
+            "baseUrl": "https://moiflix.org"
         },
         "sadisflix": {
             "name": "Sadisflix",
