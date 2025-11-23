@@ -190,6 +190,7 @@ class ConfigDrivenProvider : MainAPI() {
         private const val FREMBED_SLUG = "frembed"
         private const val DEFAULT_FREMBED_BASE = "https://frembed.my"
         private const val FRENCH_TV_LIVE_SLUG = "frenchtvlive"
+        private const val FRENCH_TV_SOURCE = "FrenchTVLive"
         private const val HOME_CACHE_TTL_MS = 10 * 60 * 1000L
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
@@ -732,6 +733,62 @@ class ConfigDrivenProvider : MainAPI() {
             }
         }
         return sections
+    }
+
+    private fun extractFirstMediaUrl(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        val regex = Regex("""https?://[^\s"'<>]+""", RegexOption.IGNORE_CASE)
+        return regex.findAll(text).map { it.value }.firstOrNull {
+            it.contains(".m3u8", ignoreCase = true) || it.contains(".mpd", ignoreCase = true) || it.contains(".mp4", ignoreCase = true)
+        }
+    }
+
+    private suspend fun loadFrenchTvPlayer(
+        pageUrl: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val base = referer ?: pageUrl
+        val doc = fetchHtml(pageUrl, referer = base).document
+        val iframe = doc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
+        val htmlText = doc.outerHtml()
+        val direct = extractFirstMediaUrl(htmlText)
+        suspend fun emit(url: String, ref: String) {
+            val type = if (url.contains(".m3u8", ignoreCase = true)) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+            callback(
+                newExtractorLink(
+                    source = FRENCH_TV_SOURCE,
+                    name = FRENCH_TV_SOURCE,
+                    url = url,
+                    type = type
+                ) {
+                    this.referer = ref
+                    quality = Qualities.Unknown.value
+                }
+            )
+        }
+        if (!direct.isNullOrBlank()) {
+            emit(direct, base)
+            return true
+        }
+        if (!iframe.isNullOrBlank()) {
+            val resolved = resolveAgainst(pageUrl, iframe) ?: iframe
+            val iframeDoc = fetchHtml(resolved, referer = pageUrl).document
+            val media = extractFirstMediaUrl(iframeDoc.outerHtml())
+                ?: iframeDoc.selectFirst("video source[src]")?.absUrl("src")?.ifBlank { null }
+                ?: iframeDoc.selectFirst("video[src]")?.absUrl("src")?.ifBlank { null }
+            if (!media.isNullOrBlank()) {
+                emit(media, resolved)
+                return true
+            }
+            // as fallback, try extractor on the iframe itself
+            return runCatching {
+                loadExtractor(resolved, pageUrl, subtitleCallback, callback)
+                true
+            }.getOrElse { false }
+        }
+        return false
     }
 
     private fun buildCoflixHomeItems(meta: ProviderMeta, array: org.json.JSONArray?, tvType: TvType): List<SearchResponse> {
@@ -3113,6 +3170,10 @@ class ConfigDrivenProvider : MainAPI() {
             }
             if (meta != null) {
                 rememberSlugForUrl(pageUrl, meta.slug)
+            }
+            if (isFrenchTv(meta) || normalizeHost(pageUrl)?.contains("fstv.", ignoreCase = true) == true) {
+                val ok = runCatching { loadFrenchTvPlayer(pageUrl, meta?.baseUrl, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
+                if (ok) return true
             }
             val referer = meta?.baseUrl ?: pageUrl
             val response = fetchHtml(pageUrl, referer = referer)
