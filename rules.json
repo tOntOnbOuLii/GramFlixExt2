@@ -28,9 +28,9 @@
         "cineplateforme": {
             "searchPath": "?s=",
             "searchParam": "s",
-            "itemSel": "article.movie-box",
-            "titleSel": ".movie-details .name a, .name a, .title, a",
-            "urlSel": ".movie-details .name a@href",
+            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
         "cinepulse": {
@@ -50,7 +50,7 @@
             "embedSel": "iframe@src"
         },
         "coflix": {
-            "searchPath": "/search?q=",
+            "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
             "titleSel": ".title, a",
