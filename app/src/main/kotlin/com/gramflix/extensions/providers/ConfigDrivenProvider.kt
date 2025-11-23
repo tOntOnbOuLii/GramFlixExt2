@@ -2601,39 +2601,51 @@ class ConfigDrivenProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val requests = parseCineplateformeAjax(doc, meta.baseUrl)
+        val origin = runCatching { URI(pageUrl).let { "${it.scheme}://${it.host}" } }.getOrNull()
+            ?: meta.baseUrl
+        val requests = parseCineplateformeAjax(doc, origin)
         if (requests.isEmpty()) return false
         var success = false
         for (req in requests) {
-            val ajaxDoc = runCatching {
-                fetchHtml(
+            val ajaxResponse = runCatching {
+                app.get(
                     req.url,
                     referer = pageUrl,
-                    extraHeaders = mapOf("X-Requested-With" to "XMLHttpRequest")
+                    headers = buildHtmlHeaders(
+                        req.url,
+                        pageUrl,
+                        mapOf(
+                            "X-Requested-With" to "XMLHttpRequest",
+                            "Origin" to origin
+                        )
+                    )
                 )
-            }.getOrNull()?.document ?: continue
-            val html = ajaxDoc.outerHtml()
-            val direct = extractFirstMediaUrl(html)
+            }.getOrNull() ?: continue
+            val body = ajaxResponse.text ?: ""
+            fun protocolRelative(u: String?): String? =
+                u?.takeIf { it.startsWith("//") }?.let { "https:${it.removePrefix("//")}" }
+
+            val direct = extractFirstMediaUrl(body) ?: protocolRelative(body)
+            val ajaxDoc = ajaxResponse.document
             val iframe = ajaxDoc.selectFirst("iframe[src]")?.absUrl("src")?.ifBlank { null }
             val target = direct ?: iframe
-            if (!target.isNullOrBlank()) {
-                val resolved = resolveAgainst(pageUrl, target) ?: target
+            val links = linkedSetOf<String>()
+            target?.let { links += it }
+            ajaxDoc.select("a[href]").forEach { anchor ->
+                val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+                if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
+                    links += href
+                }
+            }
+            for (candidate in links) {
+                val resolved = resolveAgainst(pageUrl, candidate) ?: candidate
                 val ok = runCatching {
                     loadExtractor(resolved, pageUrl, subtitleCallback, callback)
                     true
                 }.getOrElse { false }
-                if (ok) success = true
-                continue
-            }
-            ajaxDoc.select("a[href]").forEach { anchor ->
-                val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
-                if (href.contains(".m3u8", true) || href.contains(".mp4", true) || href.contains(".mpd", true)) {
-                    val resolved = resolveAgainst(pageUrl, href) ?: href
-                    val ok = runCatching {
-                        loadExtractor(resolved, pageUrl, subtitleCallback, callback)
-                        true
-                    }.getOrElse { false }
-                    if (ok) success = true
+                if (ok) {
+                    success = true
+                    break
                 }
             }
             if (!success) {
