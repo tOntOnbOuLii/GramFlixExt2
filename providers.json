@@ -54,7 +54,7 @@
         "FrenchTVLive": {
             "name": "French TV LIVE",
             "baseUrl": "https://fstv.lol",
-            "showOnHome": true
+            "showOnHome": false
         },
         "GogoFliX": {
             "name": "GogoFliX",
