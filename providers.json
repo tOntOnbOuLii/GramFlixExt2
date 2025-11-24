@@ -109,7 +109,7 @@
         "RechercheStream": {
             "name": "Recherche-stream",
             "baseUrl": "https://recherche-stream.xyz/site",
-            "showOnHome": true
+            "showOnHome": false
         },
         "Sadisflix": {
             "name": "Sadisflix",
@@ -119,7 +119,7 @@
         "SenpaiStream": {
             "name": "Senpai-Stream",
             "baseUrl": "https://senpai.wiki",
-            "showOnHome": true
+            "showOnHome": false
         },
         "Stream4Free": {
             "name": "Stream 4 Free",
@@ -143,7 +143,7 @@
         },
         "WowFilms": {
             "name": "WoW-Films",
-            "baseUrl": "https://wowfilms1025.site",
+            "baseUrl": "https://wowfilms1125b.site/",
             "showOnHome": true
         }
     }
