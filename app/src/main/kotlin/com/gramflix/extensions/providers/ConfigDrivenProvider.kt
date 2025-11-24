@@ -2052,6 +2052,19 @@ class ConfigDrivenProvider : MainAPI() {
         selectors.forEach { selector ->
             results += collectAttributeValues(doc, selector, pageUrl)
         }
+        val onclickRegex = Regex("""(?:loadVideo|showVideo)\s*\(\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+        doc.select("[onclick*=\"loadVideo\"], [onclick*=\"showVideo\"]").forEach { element ->
+            val onclick = element.attr("onclick")
+            onclickRegex.findAll(onclick).forEach { match ->
+                val raw = match.groupValues.getOrNull(1)?.trim().orEmpty()
+                if (raw.isNotBlank()) {
+                    val resolved = resolveAgainst(pageUrl, raw) ?: raw
+                    if (resolved.startsWith("http", ignoreCase = true)) {
+                        results += resolved
+                    }
+                }
+            }
+        }
         return results.toList()
     }
 

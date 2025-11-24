@@ -42,7 +42,7 @@
   {
     "slug": "flemmix",
     "name": "Flemmix",
-    "url": "https://flemmix.cam/"
+    "url": "https://flemmix.club/"
   },
   {
     "slug": "fs-miroir6",
