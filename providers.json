@@ -131,6 +131,11 @@
             "baseUrl": "https://streamscape.lol/sous-page/index.html",
             "showOnHome": false
         },
+        "Wiflix": {
+            "name": "Wiflix",
+            "baseUrl": "https://wiflix.yachts",
+            "showOnHome": true
+        },
         "WookaFR": {
             "name": "WookaFR",
             "baseUrl": "https://wookafr.boo",

@@ -1408,13 +1408,7 @@ class ConfigDrivenProvider : MainAPI() {
                 showOnHome = true
             )
         }
-        val hiddenOnHome = setOf(FRENCH_TV_SOURCE, "FrenchTVLive", FRENCH_TV_LIVE_SLUG)
-        val adjusted = list.map { meta ->
-            if (hiddenOnHome.any { meta.slug.equals(it, ignoreCase = true) }) {
-                meta.copy(showOnHome = false)
-            } else meta
-        }
-        return adjusted.sortedWith(
+        return list.sortedWith(
             compareBy<ProviderMeta> { providerPriority(it.slug) }
                 .thenBy { it.displayName.lowercase(Locale.ROOT) }
         )
@@ -2893,7 +2887,13 @@ class ConfigDrivenProvider : MainAPI() {
                 if (responses.size >= 20) break
             }
             if (responses.isNotEmpty()) {
-                sections += HomePageList(sectionTitle, responses)
+                val firstTitle = responses.firstOrNull()?.name?.trim()
+                val normalizedSection = sectionTitle.trim().lowercase(Locale.ROOT)
+                val normalizedFirst = firstTitle?.lowercase(Locale.ROOT)
+                val finalTitle = if (!normalizedFirst.isNullOrBlank() && normalizedSection == normalizedFirst) {
+                    meta.displayName
+                } else sectionTitle
+                sections += HomePageList(finalTitle, responses)
             }
         }
         return sections
@@ -3098,7 +3098,7 @@ class ConfigDrivenProvider : MainAPI() {
             if (requestedSlug == null || requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true)) emptyList() else metas
         }
 
-        val pageSize = 2
+        val pageSize = 1
         val lists = mutableListOf<HomePageList>()
         var hasNextProviders = false
         if (filteredMetas.isNotEmpty()) {

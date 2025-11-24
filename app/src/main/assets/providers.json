@@ -74,7 +74,7 @@
         "FrenchTVLive": {
             "name": "French TV LIVE",
             "baseUrl": "https://fstv.lol",
-            "showOnHome": true
+            "showOnHome": false
         },
         "GogoFliX": {
             "name": "GogoFliX",
@@ -144,12 +144,12 @@
         "Stream4Free": {
             "name": "Stream 4 Free",
             "baseUrl": "https://www.stream4free.tv/tv-live-france",
-            "showOnHome": true
+            "showOnHome": false
         },
         "StreamScape": {
             "name": "Streamscape",
             "baseUrl": "https://streamscape.lol/sous-page/index.html",
-            "showOnHome": true
+            "showOnHome": false
         },
         "Wiflix": {
             "name": "Wiflix",
@@ -158,7 +158,7 @@
         },
         "WookaFR": {
             "name": "WookaFR",
-            "baseUrl": "https://wookafr.fans",
+            "baseUrl": "https://wookafr.boo",
             "showOnHome": true
         },
         "WowFilms": {
