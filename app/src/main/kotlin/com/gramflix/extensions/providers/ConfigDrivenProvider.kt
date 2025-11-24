@@ -1399,7 +1399,22 @@ class ConfigDrivenProvider : MainAPI() {
                 showOnHome = true
             )
         }
-        return list.sortedWith(
+        if (missing("Flemmix")) {
+            list += ProviderMeta(
+                slug = "Flemmix",
+                displayName = "Flemmix",
+                baseUrl = "https://flemmix.club",
+                rule = parseRule("Flemmix"),
+                showOnHome = true
+            )
+        }
+        val hiddenOnHome = setOf(FRENCH_TV_SOURCE, "FrenchTVLive", FRENCH_TV_LIVE_SLUG)
+        val adjusted = list.map { meta ->
+            if (hiddenOnHome.any { meta.slug.equals(it, ignoreCase = true) }) {
+                meta.copy(showOnHome = false)
+            } else meta
+        }
+        return adjusted.sortedWith(
             compareBy<ProviderMeta> { providerPriority(it.slug) }
                 .thenBy { it.displayName.lowercase(Locale.ROOT) }
         )
@@ -3083,7 +3098,7 @@ class ConfigDrivenProvider : MainAPI() {
             if (requestedSlug == null || requestedSlug.equals(FALLBACK_HOME_KEY, ignoreCase = true)) emptyList() else metas
         }
 
-        val pageSize = 3
+        val pageSize = 2
         val lists = mutableListOf<HomePageList>()
         var hasNextProviders = false
         if (filteredMetas.isNotEmpty()) {
