@@ -1,7 +1,7 @@
 {
     "version": 1,
     "rules": {
-        "1jour1film": {
+        "1JOUR1FILM": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -9,7 +9,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "animesama": {
+        "AnimeSama": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -17,7 +17,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "buzzmonclick": {
+        "BuzzMonclick": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -25,15 +25,15 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "cineplateforme": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": "article.movie-box",
-            "titleSel": ".movie-details .name a, .name a, .title",
-            "urlSel": ".movie-details .name a@href",
+        "CinePlateforme": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "cinepulse": {
+        "Cinepulse": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -41,7 +41,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "cmd-stream": {
+        "CMD-Stream": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -49,7 +49,55 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "coflix": {
+        "CoFliX": {
+            "searchPath": "/search?q=",
+            "searchParam": "q",
+            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "CPasMal": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "DirectFR": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Fanstream": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "FilmoFlix": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Flemmix": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Frembed": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -57,7 +105,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "cpasmal": {
+        "FrenchStream": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -65,55 +113,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "directfr": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "fanstream": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "filmoflix": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "flemmix": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "frembed": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "frenchstream": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "frenchtvlive": {
+        "FrenchTVLive": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": "a[href]",
@@ -121,7 +121,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "gogoflix": {
+        "GogoFliX": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -129,15 +129,15 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "hdss": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
+        "HDss": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "ikromi": {
+        "Ikromi": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -145,11 +145,83 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "monstream": {
+        "MonStream": {
             "searchPath": "recherche?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
             "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "NetMirror": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": "a[href]",
+            "titleSel": "a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "NightFlix": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": ".item a[href], a.poster, .post a[href], article a[href]",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "PapaduStream": {
+            "searchPath": "index.php?do=search&subaction=search&story=",
+            "searchParam": "story",
+            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
+            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Purstream": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "RechercheStream": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": "a[href]",
+            "titleSel": "a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Sadisflix": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
+            "titleSel": ".title, a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "SenpaiStream": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": "a[href]",
+            "titleSel": "a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "Stream4Free": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": "a[href]",
+            "titleSel": "a",
+            "urlSel": "a@href",
+            "embedSel": "iframe@src"
+        },
+        "StreamScape": {
+            "searchPath": "search?q=",
+            "searchParam": "q",
+            "itemSel": "a[href]",
+            "titleSel": "a",
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
@@ -161,23 +233,7 @@
             "urlSel": "self@data-url",
             "embedSel": "iframe@src"
         },
-        "netmirror": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "nightflix": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": ".item a[href], a.poster, .post a[href], article a[href]",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "papadustream": {
+        "Wiflix": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -185,15 +241,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "purstream": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "recherchestream": {
+        "WookaFR": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": "a[href]",
@@ -201,39 +249,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "sadisflix": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "senpaistream": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "stream4free": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "streamscape": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "wiflix": {
+        "WowFilms": {
             "searchPath": "?s=",
             "searchParam": "s",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -241,23 +257,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "wookafr": {
-            "searchPath": "search?q=",
-            "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "wowfilms": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
-            "titleSel": ".title, a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
-        },
-        "xalaflix": {
+        "XalaFlix": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
@@ -265,7 +265,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "yopflix": {
+        "YopFlix": {
             "searchPath": "search?q=",
             "searchParam": "q",
             "itemSel": ".post a[href], article a[href], .item a[href], a.poster",
