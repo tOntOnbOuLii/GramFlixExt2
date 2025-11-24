@@ -6,16 +6,6 @@
             "baseUrl": "https://1jour1film1125.site",
             "showOnHome": true
         },
-        "AnimeSama": {
-            "name": "Anime-Sama",
-            "baseUrl": "https://anime-sama.fr",
-            "showOnHome": true
-        },
-        "BuzzMonclick": {
-            "name": "BuzzMonclick",
-            "baseUrl": "https://buzzmonclick.io",
-            "showOnHome": false
-        },
         "CinePlateforme": {
             "name": "CinePlateforme",
             "baseUrl": "https://www.cineplateforme.cc",
@@ -26,44 +16,14 @@
             "baseUrl": "https://cinepulse.homes",
             "showOnHome": true
         },
-        "CMD-Stream": {
-            "name": "CMD-Stream",
-            "baseUrl": "https://cmd-stream.xyz",
-            "showOnHome": true
-        },
         "CoFliX": {
             "name": "CoFliX",
             "baseUrl": "https://coflix.si",
             "showOnHome": true
         },
-        "CPasMal": {
-            "name": "CPasMal",
-            "baseUrl": "https://www.cpasmal.rip",
-            "showOnHome": true
-        },
-        "DirectFR": {
-            "name": "DirectFR",
-            "baseUrl": "https://directfr.lat",
-            "showOnHome": true
-        },
-        "Fanstream": {
-            "name": "Fanstream",
-            "baseUrl": "https://fanstream.fun",
-            "showOnHome": true
-        },
-        "FilmoFlix": {
-            "name": "FilmoFlix",
-            "baseUrl": "https://filmoflix.bike",
-            "showOnHome": true
-        },
         "Flemmix": {
             "name": "Flemmix",
             "baseUrl": "https://flemmix.town",
-            "showOnHome": true
-        },
-        "Frembed": {
-            "name": "Frembed",
-            "baseUrl": "https://frembed.cfd",
             "showOnHome": true
         },
         "FrenchStream": {
@@ -76,31 +36,6 @@
             "baseUrl": "https://fstv.lol",
             "showOnHome": true
         },
-        "GogoFliX": {
-            "name": "GogoFliX",
-            "baseUrl": "https://gogoflix.website",
-            "showOnHome": true
-        },
-        "HDss": {
-            "name": "HDss",
-            "baseUrl": "https://hdss.now",
-            "showOnHome": true
-        },
-        "Ikromi": {
-            "name": "Ikromi",
-            "baseUrl": "https://ikromi.com/7x2bv1y/home/ikromi",
-            "showOnHome": true
-        },
-        "MoiFliX": {
-            "name": "MoiFliX",
-            "baseUrl": "https://moiflix.org",
-            "showOnHome": true
-        },
-        "MonStream": {
-            "name": "MonStream",
-            "baseUrl": "https://vww.monstream.cafe",
-            "showOnHome": true
-        },
         "Nebryx": {
             "name": "Nebryx",
             "baseUrl": "https://nebryx.fr",
@@ -111,29 +46,14 @@
             "baseUrl": "https://net20.cc/verify",
             "showOnHome": true
         },
-        "NightFlix": {
-            "name": "NightFlix",
-            "baseUrl": "https://nightflix.world",
-            "showOnHome": true
-        },
         "PapaduStream": {
             "name": "PapaduStream",
             "baseUrl": "https://papadustream.doctor",
             "showOnHome": true
         },
-        "Purstream": {
-            "name": "Purstream",
-            "baseUrl": "https://purstream.to",
-            "showOnHome": true
-        },
         "Sadisflix": {
             "name": "Sadisflix",
             "baseUrl": "https://sadisflix-officiel.com",
-            "showOnHome": true
-        },
-        "SenpaiStream": {
-            "name": "Senpai-Stream",
-            "baseUrl": "https://senpai.wiki",
             "showOnHome": true
         },
         "Stream4Free": {
