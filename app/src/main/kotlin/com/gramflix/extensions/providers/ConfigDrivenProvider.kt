@@ -1379,6 +1379,26 @@ class ConfigDrivenProvider : MainAPI() {
                 showOnHome = showOnHome
             )
         }
+        // Force critical providers in case remote config is missing/invalid.
+        fun missing(slug: String) = list.none { it.slug.equals(slug, ignoreCase = true) }
+        if (missing("FrenchStream")) {
+            list += ProviderMeta(
+                slug = "FrenchStream",
+                displayName = "French stream",
+                baseUrl = "https://fs-miroir6.lol",
+                rule = parseRule("FrenchStream"),
+                showOnHome = true
+            )
+        }
+        if (missing("Flemmix")) {
+            list += ProviderMeta(
+                slug = "Flemmix",
+                displayName = "Flemmix",
+                baseUrl = "https://flemmix.club",
+                rule = parseRule("Flemmix"),
+                showOnHome = true
+            )
+        }
         return list.sortedWith(
             compareBy<ProviderMeta> { providerPriority(it.slug) }
                 .thenBy { it.displayName.lowercase(Locale.ROOT) }
