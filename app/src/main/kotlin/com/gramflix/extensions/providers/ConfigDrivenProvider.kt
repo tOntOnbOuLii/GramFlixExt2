@@ -2052,6 +2052,27 @@ class ConfigDrivenProvider : MainAPI() {
         selectors.forEach { selector ->
             results += collectAttributeValues(doc, selector, pageUrl)
         }
+        if (meta?.slug.equals("frenchstream", ignoreCase = true)) {
+            val html = try {
+                doc.outerHtml()
+            } catch (_: Throwable) {
+                null
+            }
+            if (!html.isNullOrBlank()) {
+                val block = Regex("""playerUrls\s*=\s*\{([\s\S]*?)\};""").find(html)?.groups?.get(1)?.value
+                if (!block.isNullOrBlank()) {
+                    Regex("""https?://[^"'\\s<>]+""")
+                        .findAll(block)
+                        .mapNotNull { match -> match.value.trim().takeIf { url -> url.isNotBlank() } }
+                        .forEach { raw ->
+                            val resolved = resolveAgainst(pageUrl, raw) ?: raw
+                            if (resolved.startsWith("http", ignoreCase = true)) {
+                                results += resolved
+                            }
+                        }
+                }
+            }
+        }
         val onclickRegex = Regex("""(?:loadVideo|showVideo)\s*\(\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
         doc.select("[onclick*=\"loadVideo\"], [onclick*=\"showVideo\"]").forEach { element ->
             val onclick = element.attr("onclick")
