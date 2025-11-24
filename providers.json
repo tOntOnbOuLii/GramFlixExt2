@@ -124,17 +124,12 @@
         "Stream4Free": {
             "name": "Stream 4 Free",
             "baseUrl": "https://www.stream4free.tv/tv-live-france",
-            "showOnHome": true
+            "showOnHome": false
         },
         "StreamScape": {
             "name": "Streamscape",
             "baseUrl": "https://streamscape.lol/sous-page/index.html",
-            "showOnHome": true
-        },
-        "Wiflix": {
-            "name": "Wiflix",
-            "baseUrl": "https://wiflix.yachts",
-            "showOnHome": true
+            "showOnHome": false
         },
         "WookaFR": {
             "name": "WookaFR",
