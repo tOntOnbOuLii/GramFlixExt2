@@ -1,92 +1,33 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/refs/heads/main/logo.jpg" alt="GRAMFLIX" width="320"/>
-</p>
+# GramFlix pour CloudStream
 
-<p align="center">Le streaming français sans limite, tout-en-un pour <a href="https://github.com/recloudstream/cloudstream/" target="_blank"></b>CloudStream<b></a> !
+Extension CloudStream dynamique (config distante + fallback embarque). Ce repo contient uniquement ce qui est necessaire au plugin et aux JSON consommes par le webpanel. Le webpanel lui-meme reste hors repo (FTP perso).
 
-<p align="center">Films, séries, animés : toutes les meilleures sources françaises enfin réunies au même endroit.
-</p>
+## Providers actifs (15)
+- 1JOUR1FILM — https://1jour1film1125b.site
+- AnimeSama — https://anime-sama.org (parse `episodes.js` pour extraire les lecteurs)
+- CinePlateforme — https://www.cineplateforme.cc
+- Cinepulse — https://riverlanes.site/cinepulse/
+- CoFliX — https://coflix.foo
+- Flemmix — https://flemmix.one
+- FrenchStream — https://fs-miroir6.lol
+- HDss — https://hdss.now
+- MoiFliX — https://moiflix.org
+- Nebryx — https://nebryx.fr
+- PapaduStream — https://papadustream.garden
+- Purstream — https://purstream.to
+- SenpaiStream — https://senpai-stream.bio
+- WowFilms — https://wowfilms1125b.site
+- XalaFlix — https://xalaflix.in
 
----
+## Config distante
+Les JSON publics (providers/hosters/rules/home) sont a la racine et dupliques dans `app/src/main/assets` pour le fallback offline. Le webpanel ecrit dans ces JSON cote FTP puis un job GitHub peut les pousser.
 
-## 🚀 Installation rapide
+## Build rapide
+```bash
+./gradlew :app:assembleRelease
+```
+Sortie : `app/build/outputs/aar/app-release.aar` (renommer en `.cs3` pour CloudStream si besoin).
 
-1. Ouvre CloudStream sur ton appareil
-2. Va dans l'onglet Extensions
-3. Clique sur "Ajouter une source"
-4. Entre simplement le code : `GRAMFLIX`
-5. ✨ PROFITE : tous les meilleurs providers FR débarquent dans ton appli, automagiquement.
-
----
-
-## 🎯 Ce que tu obtiens
-
-### 23 sites français premium en 1 seul clic :
-
-🎬 Films & Séries
-- 1Jour1Film
-- CMD-Stream
-- Coflix
-- Cpasmal
-- DuLourd
-- Fanstream
-- Flemmix
-- FS-Miroir6
-- HDSS
-- MonStream
-- NightFlix
-- PapaduStream
-- PurStream
-- Sadisflix
-- WookaFr
-- WowFilms
-- Xalaflix
-- YopFlix
-
-🌸 Animés
-- Anime-Sama
-- Nebryx
-
-📺 TV & Replay
-- BuzzMonClick
-- CpasMieux
-- iKromi
-
----
-
-## ⚡️ Pourquoi GramFlix ?
-
-✅ AllInOne : 32 sources en une seule extension
-✅ VF uniquement : pas de VOSTFR pour te polluer les résultats
-✅ Updates instantanées : si un site change, on le corrige direct
-✅ Aucune pub, aucun tracker : juste du streaming pur
-✅ Communauté active : signale les problèmes, on réagit vite
-
----
-
-## 💬 Besoin d'aide ?
-
-Un site ne marche plus ? Une suggestion ? Ouvre une [issue](https://github.com/x-R0b0T-x/GramFlix/issues) !
-
----
-
-## 📜 Disclaimer
-
-GramFlix est une extension pour CloudStream qui agrège des liens publics. Nous ne stockons, n'hébergeons ni ne distribuons aucun contenu. Toute utilisation se fait sous la responsabilité de l'utilisateur.
-
----
-
-<p align="center">
-  Made with ❤️ by <a href="https://github.com/x-R0b0T-x">x-R0b0T-x</a>
-</p>
-
-<p align="center">
-  <strong>GramFlix - Le streaming français qui défouraille ! 🔥</strong>
-</p>
-
----
-
-## Assets
-
-Le pack fournit aussi les fichiers logo.jpg et avicon.png a la racine du depot pour integrer rapidement l'identite visuelle GramFlix sur vos hebergements.
-
+## Notes
+- Hosters ajoutes : `ups2up.fun`, `luluvid.com`, `savefiles.com`, `hglink.to`, alias VOE (`christopheruntilpoint.com`) et FileLions (`dintezuvio.com`).
+- Ne pas pousser le dossier `webpanel/` dans GitHub. Garder la copie locale pour FTP.

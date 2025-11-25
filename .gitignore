@@ -24,3 +24,6 @@ tafili.fr/config.local.php
 # Sensitive tokens
 token.txt
 gramflix-all.cs3
+
+# Keep webpanel local only
+webpanel/

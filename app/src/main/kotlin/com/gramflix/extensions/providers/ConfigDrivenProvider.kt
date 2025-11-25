@@ -1420,6 +1420,12 @@ class ConfigDrivenProvider : MainAPI() {
     private fun isNebryxSlug(slug: String?): Boolean =
         slug?.equals(NEBRYX_SLUG, ignoreCase = true) == true
 
+    private fun isAnimeSama(meta: ProviderMeta?): Boolean =
+        meta?.slug?.equals("AnimeSama", ignoreCase = true) == true
+
+    private fun isAnimeSamaUrl(url: String?): Boolean =
+        url?.contains("anime-sama.org", ignoreCase = true) == true
+
     private fun isFrenchTv(meta: ProviderMeta?): Boolean =
         meta?.slug?.equals(FRENCH_TV_LIVE_SLUG, ignoreCase = true) == true
 
@@ -1726,6 +1732,85 @@ class ConfigDrivenProvider : MainAPI() {
             extractorData,
             link.type
         )
+    }
+
+    private suspend fun fetchAnimeSamaArrays(pageUrl: String, doc: Document? = null): Map<Int, List<String>>? {
+        val document = doc ?: fetchHtml(pageUrl, referer = pageUrl).document
+        val script = document.selectFirst("script[src*=\"episodes.js\"]") ?: return null
+        val rawSrc = script.attr("src").takeIf { it.isNotBlank() } ?: return null
+        val scriptUrl = script.absUrl("src").takeIf { it.isNotBlank() } ?: resolveAgainst(pageUrl, rawSrc) ?: rawSrc
+        val js = runCatching { app.get(scriptUrl, referer = pageUrl).text }.getOrNull() ?: return null
+        val arrays = mutableMapOf<Int, List<String>>()
+        val regex = Regex("""var\s+(eps\d+)\s*=\s*\[(.*?)];""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE))
+        regex.findAll(js).forEach { match ->
+            val name = match.groupValues.getOrNull(1) ?: return@forEach
+            val readerIndex = name.removePrefix("eps").toIntOrNull() ?: return@forEach
+            val body = match.groupValues.getOrNull(2) ?: return@forEach
+            val links = Regex("""['"]([^'"]+)['"]""")
+                .findAll(body)
+                .mapNotNull { it.groupValues.getOrNull(1)?.trim() }
+                .filter { it.isNotEmpty() }
+                .toList()
+            if (links.isNotEmpty()) arrays[readerIndex] = links
+        }
+        if (arrays.isEmpty()) return null
+        if (arrays.containsKey(1) && arrays.containsKey(2)) {
+            val first = arrays[1]
+            val second = arrays[2]
+            if (first != null && second != null) {
+                arrays[1] = second
+                arrays[2] = first
+            }
+        }
+        return arrays
+    }
+
+    private fun buildAnimeSamaEpisodes(
+        meta: ProviderMeta,
+        pageUrl: String,
+        arrays: Map<Int, List<String>>,
+        title: String,
+        poster: String?
+    ): List<Episode> {
+        val count = arrays[1]?.size ?: arrays.values.maxOfOrNull { it.size } ?: 0
+        if (count <= 0) return emptyList()
+        val episodes = mutableListOf<Episode>()
+        for (index in 0 until count) {
+            val dataPayload = encodeLoadData(
+                url = pageUrl,
+                slug = meta.slug,
+                title = title,
+                poster = poster,
+                episode = index
+            )
+            episodes += newEpisode(dataPayload) {
+                name = "Episode ${index + 1}"
+                season = 1
+                episode = index + 1
+                posterUrl = poster
+            }
+        }
+        return episodes
+    }
+
+    private suspend fun loadAnimeSamaLinks(
+        pageUrl: String,
+        episodeIndex: Int,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val arrays = fetchAnimeSamaArrays(pageUrl) ?: return false
+        val dedupe = hashSetOf<String>()
+        var success = false
+        arrays.toSortedMap().values.forEach { list ->
+            val link = list.getOrNull(episodeIndex) ?: return@forEach
+            if (!dedupe.add(link)) return@forEach
+            runCatching {
+                loadExtractor(link, pageUrl, subtitleCallback, callback)
+                success = true
+            }
+        }
+        return success
     }
 
     private fun findMetaBySlug(metas: List<ProviderMeta>, slug: String): ProviderMeta? {
@@ -3158,7 +3243,9 @@ class ConfigDrivenProvider : MainAPI() {
         val imdbId: String?,
         val title: String?,
         val poster: String?,
-        val year: Int?
+        val year: Int?,
+        val episode: Int?,
+        val reader: Int?
     )
 
     private fun encodeLoadData(
@@ -3167,7 +3254,9 @@ class ConfigDrivenProvider : MainAPI() {
         imdbId: String? = null,
         title: String? = null,
         poster: String? = null,
-        year: Int? = null
+        year: Int? = null,
+        episode: Int? = null,
+        reader: Int? = null
     ): String {
         val obj = JSONObject()
         obj.put("url", url)
@@ -3176,6 +3265,8 @@ class ConfigDrivenProvider : MainAPI() {
         title?.takeIf { it.isNotBlank() }?.let { obj.put("title", it) }
         poster?.takeIf { it.isNotBlank() }?.let { obj.put("poster", it) }
         year?.let { obj.put("year", it) }
+        episode?.let { obj.put("episode", it) }
+        reader?.let { obj.put("reader", it) }
         return obj.toString()
     }
 
@@ -3190,9 +3281,11 @@ class ConfigDrivenProvider : MainAPI() {
             val poster = obj.optString("poster").takeIf { it.isNotBlank() }
             val yearValue = obj.optInt("year")
             val year = if (obj.has("year") && yearValue > 0) yearValue else null
-            LoadData(normalizedUrl, slug, imdb, title, poster, year)
+            val episode = if (obj.has("episode")) obj.optInt("episode") else null
+            val reader = if (obj.has("reader")) obj.optInt("reader") else null
+            LoadData(normalizedUrl, slug, imdb, title, poster, year, episode, reader)
         }.getOrElse {
-            LoadData(normalizeWebpanelUrl(data), null, null, null, null, null)
+            LoadData(normalizeWebpanelUrl(data), null, null, null, null, null, null, null)
         }
     }
 
@@ -3337,6 +3430,16 @@ class ConfigDrivenProvider : MainAPI() {
                 ?: meta?.displayName
                 ?: name
             val poster = extractPosterFromDoc(doc, pageLocation)
+            if (meta != null && isAnimeSama(meta)) {
+                val arrays = runCatching { fetchAnimeSamaArrays(pageLocation, doc) }.getOrNull()
+                val animeEpisodes = arrays?.let { buildAnimeSamaEpisodes(meta, pageLocation, it, title, poster ?: posterHint) }
+                if (!animeEpisodes.isNullOrEmpty()) {
+                    return newTvSeriesLoadResponse(title, pageLocation, TvType.Anime, animeEpisodes) {
+                        description?.let { plot = it }
+                        (posterHint ?: poster)?.let { posterUrl = it }
+                    }
+                }
+            }
             val episodes = parseTvEpisodes(meta, doc, pageLocation)
             if (episodes.isNotEmpty()) {
                 val seriesType = when (determineTvType(meta, pageUrl, null)) {
@@ -3378,6 +3481,13 @@ class ConfigDrivenProvider : MainAPI() {
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
+            if (loadData.slug.equals("AnimeSama", ignoreCase = true) || isAnimeSamaUrl(pageUrl)) {
+                val episodeIndex = loadData.episode ?: 0
+                val okAnime = runCatching {
+                    loadAnimeSamaLinks(pageUrl, episodeIndex, subtitleCallback, hosterAwareCallback)
+                }.getOrElse { false }
+                if (okAnime) return true
+            }
             val nebryxEntry = parseNebryxUrl(pageUrl)
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
