@@ -91,7 +91,7 @@
         },
         "filelions": {
             "name": "FileLions",
-            "url": "https://*.filelions.to/*"
+            "url": "https://*.filelions.to/*, https://*.dintezuvio.com/*"
         },
         "filemoon": {
             "name": "Filemoon",
@@ -311,7 +311,7 @@
         },
         "voe": {
             "name": "VOE",
-            "url": "https://*.voe.sx/*, https://*.ralphysuccessfull.org/*"
+            "url": "https://*.voe.sx/*, https://*.ralphysuccessfull.org/*, https://*.christopheruntilpoint.com/*"
         },
         "wetransfer": {
             "name": "WeTransfer",
@@ -400,6 +400,22 @@
         "pcloud": {
             "name": "pCloud",
             "url": "https://*.pcloud.com/*"
+        },
+        "ups2up": {
+            "name": "Ups2Up",
+            "url": "https://*.ups2up.fun/*"
+        },
+        "luluvid": {
+            "name": "LuluVid",
+            "url": "https://*.luluvid.com/*"
+        },
+        "savefiles": {
+            "name": "SaveFiles",
+            "url": "https://*.savefiles.com/*"
+        },
+        "hglink": {
+            "name": "HGlink",
+            "url": "https://*.hglink.to/*"
         }
     }
 }
