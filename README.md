@@ -30,4 +30,4 @@ Sortie : `app/build/outputs/aar/app-release.aar` (renommer en `.cs3` pour CloudS
 
 ## Notes
 - Hosters ajoutes : `ups2up.fun`, `luluvid.com`, `savefiles.com`, `hglink.to`, alias VOE (`christopheruntilpoint.com`) et FileLions (`dintezuvio.com`).
-- Ne pas pousser le dossier `webpanel/` dans GitHub. Garder la copie locale pour FTP.
+
