@@ -1,6 +1,6 @@
 [
   {
-    "name": "GramFlix All-in-One",
+    "name": "GramFlix Stream",
     "internalName": "GramflixExtensions",
     "version": 85,
     "apiVersion": 1,
@@ -8,8 +8,8 @@
     "url": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/gramflix-all.cs3",
     "language": "fr",
     "tvTypes": ["Movie", "TvSeries", "Anime"],
-    "authors": ["GramFlix"],
-    "description": "Pack regroupant les providers GramFlix config-driven",
+    "authors": ["tOntOnbOuLii"],
+    "description": "Pack regroupant les providers pour GramFlix",
     "repositoryUrl": "https://github.com/tOntOnbOuLii/GramFlixExt2",
     "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
     "fileSize": 155659
