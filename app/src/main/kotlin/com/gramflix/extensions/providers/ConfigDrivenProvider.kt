@@ -2256,6 +2256,47 @@ class ConfigDrivenProvider : MainAPI() {
         return results.toList()
     }
 
+    private fun buildFrenchStreamEmbeds(doc: Document, pageUrl: String): List<String> {
+        val links = linkedSetOf<String>()
+        doc.select(".player-option, [data-player]").forEach { element ->
+            element.attributes().forEach { attribute ->
+                val key = attribute.key.lowercase(Locale.ROOT)
+                if (key.startsWith("data-url") || key.startsWith("data-src") || key == "data-href" || key == "data-link") {
+                    val raw = attribute.value.trim()
+                    if (raw.isNotBlank()) {
+                        val resolved = resolveAgainst(pageUrl, raw) ?: raw
+                        if (resolved.startsWith("http", ignoreCase = true)) {
+                            links += resolved
+                        }
+                    }
+                }
+            }
+        }
+        val html = runCatching { doc.outerHtml() }.getOrNull()
+        if (!html.isNullOrBlank()) {
+            val block = Regex("""playerUrls\s*=\s*\{([\s\S]*?)\};""").find(html)?.groups?.get(1)?.value
+            if (!block.isNullOrBlank()) {
+                Regex("""https?://[^"'\\s<>]+""")
+                    .findAll(block)
+                    .mapNotNull { match -> match.value.trim().takeIf { url -> url.isNotBlank() } }
+                    .forEach { raw ->
+                        val resolved = resolveAgainst(pageUrl, raw) ?: raw
+                        if (resolved.startsWith("http", ignoreCase = true)) {
+                            links += resolved
+                        }
+                    }
+            }
+        }
+        val priorityHosts = listOf("fsvid", "vidzy", "kakaflix", "voe", "dood", "uqload", "filemoon", "netu", "multiup")
+        val prioritized = mutableListOf<String>()
+        fun host(url: String): String = normalizeHost(url) ?: url.lowercase(Locale.ROOT)
+        priorityHosts.forEach { target ->
+            links.filter { host(it).contains(target) }.forEach { if (!prioritized.contains(it)) prioritized += it }
+        }
+        links.filterNot { prioritized.contains(it) }.forEach { prioritized += it }
+        return prioritized
+    }
+
     private suspend fun handleFrenchStreamEmbed(
         embedUrl: String,
         pageUrl: String,
@@ -3638,6 +3679,20 @@ class ConfigDrivenProvider : MainAPI() {
             if (meta?.slug?.equals("cineplateforme", ignoreCase = true) == true) {
                 val okCine = runCatching { loadCineplateformeLinks(meta, pageUrl, doc, response.headers, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
                 if (okCine) return true
+            }
+            if (meta?.slug.equals("frenchstream", ignoreCase = true)) {
+                val fsEmbeds = buildFrenchStreamEmbeds(doc, pageUrl)
+                fsEmbeds.take(15).forEach { link ->
+                    val handled = runCatching {
+                        handleFrenchStreamEmbed(link, pageUrl, subtitleCallback, hosterAwareCallback)
+                    }.getOrDefault(false)
+                    if (handled) return true
+                    try {
+                        loadExtractor(link, pageUrl, subtitleCallback, hosterAwareCallback)
+                        return true
+                    } catch (_: Throwable) {
+                    }
+                }
             }
             if (isFrenchTv(meta) || normalizeHost(pageUrl)?.contains("fstv.", ignoreCase = true) == true) {
                 val ok = runCatching { loadFrenchTvPlayer(pageUrl, meta?.baseUrl, subtitleCallback, hosterAwareCallback) }.getOrElse { false }
