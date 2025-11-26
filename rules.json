@@ -65,13 +65,13 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-        "MoiFliX": {
-            "searchPath": "?s=",
-            "searchParam": "s",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
+         "MoiFliX": {
+            "searchPath": "search/{query}",
+            "searchParam": "q",
+            "itemSel": ".list-movie",
+            "titleSel": ".list-title, img@alt",
+            "urlSel": ".list-title@href, a.list-media@href, a@href",
+            "embedSel": "iframe@src, video@src"
         },
         "Nebryx": {
             "searchPath": "tmdb",
@@ -98,12 +98,12 @@
             "embedSel": "iframe@src"
         },
         "SenpaiStream": {
-            "searchPath": "search?q=",
+            "searchPath": "search/{query}",
             "searchParam": "q",
-            "itemSel": "a[href]",
-            "titleSel": "a",
-            "urlSel": "a@href",
-            "embedSel": "iframe@src"
+            "itemSel": "a[href*=\"/movie/\"], a[href*=\"/serie\"], a[href*=\"/anime\"], a[href*=\"/tv/\"]",
+            "titleSel": "img@alt, h3, .line-clamp-1, .line-clamp-2, a",
+            "urlSel": "self@href",
+            "embedSel": "iframe@src, video@src"
         },
         "WowFilms": {
             "searchPath": "?s=",
