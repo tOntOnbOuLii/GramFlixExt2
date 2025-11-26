@@ -2,7 +2,7 @@
   {
     "name": "GramFlix All-in-One",
     "internalName": "GramflixExtensions",
-    "version": 84,
+    "version": 85,
     "apiVersion": 1,
     "status": 1,
     "url": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/gramflix-all.cs3",
@@ -11,7 +11,7 @@
     "authors": ["GramFlix"],
     "description": "Pack regroupant les providers GramFlix config-driven",
     "repositoryUrl": "https://github.com/tOntOnbOuLii/GramFlixExt2",
-    "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/icon.png",
-    "fileSize": 155655
+    "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
+    "fileSize": 155659
   }
 ]
