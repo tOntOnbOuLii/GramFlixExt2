@@ -65,7 +65,7 @@
             "urlSel": "a@href",
             "embedSel": "iframe@src"
         },
-         "MoiFliX": {
+        "MoiFliX": {
             "searchPath": "search/{query}",
             "searchParam": "q",
             "itemSel": ".list-movie",
