@@ -52,7 +52,7 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 class ConfigDrivenProvider : MainAPI() {
-    override var name = "GramFlix Dynamic"
+    override var name = "GramFlix Stream"
     override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
