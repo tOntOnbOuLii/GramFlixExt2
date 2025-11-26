@@ -416,6 +416,18 @@
         "hglink": {
             "name": "HGlink",
             "url": "https://*.hglink.to/*"
+        },
+        "fsvid": {
+            "name": "FSVid",
+            "url": "https://*.fsvid.lol/*"
+        },
+        "vidzy": {
+            "name": "Vidzy",
+            "url": "https://*.vidzy.org/*"
+        },
+        "kakaflix": {
+            "name": "KakaFlix",
+            "url": "https://*.kakaflix.lol/*"
         }
     }
 }
