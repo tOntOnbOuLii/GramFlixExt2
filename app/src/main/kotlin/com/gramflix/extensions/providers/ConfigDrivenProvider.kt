@@ -2167,6 +2167,20 @@ class ConfigDrivenProvider : MainAPI() {
             results += collectAttributeValues(doc, selector, pageUrl)
         }
         if (meta?.slug.equals("frenchstream", ignoreCase = true)) {
+            doc.select(".player-option, [data-player]").forEach { element ->
+                element.attributes().forEach { attribute ->
+                    val key = attribute.key.lowercase(Locale.ROOT)
+                    if (key.startsWith("data-url") || key.startsWith("data-src") || key == "data-href" || key == "data-link") {
+                        val raw = attribute.value.trim()
+                        if (raw.isNotBlank()) {
+                            val resolved = resolveAgainst(pageUrl, raw) ?: raw
+                            if (resolved.startsWith("http", ignoreCase = true)) {
+                                results += resolved
+                            }
+                        }
+                    }
+                }
+            }
             val html = try {
                 doc.outerHtml()
             } catch (_: Throwable) {
@@ -2240,6 +2254,87 @@ class ConfigDrivenProvider : MainAPI() {
             }
         }
         return results.toList()
+    }
+
+    private suspend fun handleFrenchStreamEmbed(
+        embedUrl: String,
+        pageUrl: String,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val host = normalizeHost(embedUrl) ?: return false
+        val needsSpecialHandling =
+            host.contains("fsvid.") || host.contains("vidzy.") || host.contains("kakaflix.")
+        if (!needsSpecialHandling) return false
+        val response = runCatching { fetchHtml(embedUrl, referer = pageUrl) }.getOrNull() ?: return false
+        val doc = response.document
+        val html = response.text ?: runCatching { doc.outerHtml() }.getOrNull()
+        val candidates = linkedSetOf<String>()
+        candidates += collectAttributeValues(doc, "source@src", embedUrl)
+        candidates += collectAttributeValues(doc, "video@src", embedUrl)
+        candidates += collectAttributeValues(doc, "iframe@src", embedUrl)
+        if (!html.isNullOrBlank()) {
+            listOf(
+                Regex("""https?://[^\s"'<>]+\.m3u8[^\s"'<>]*""", RegexOption.IGNORE_CASE),
+                Regex("""https?://[^\s"'<>]+\.mp4[^\s"'<>]*""", RegexOption.IGNORE_CASE),
+                Regex("""['"]file['"]\s*[:=]\s*['"](https?://[^\s"'<>]+)['"]""", RegexOption.IGNORE_CASE)
+            ).forEach { regex ->
+                regex.findAll(html).forEach { match ->
+                    val value = match.groupValues.lastOrNull()?.trim().takeIf { !it.isNullOrBlank() }
+                        ?: match.value.trim()
+                    if (value.isNotBlank()) {
+                        candidates += value
+                    }
+                }
+            }
+        }
+        var success = false
+        val headers = mapOf(
+            "User-Agent" to BROWSER_USER_AGENT,
+            "Referer" to embedUrl
+        )
+        candidates.take(12).forEach { candidate ->
+            when {
+                candidate.contains(".m3u8", ignoreCase = true) -> {
+                    callback(
+                        newExtractorLink(
+                            source = "FrenchStream",
+                            name = "FrenchStream",
+                            url = candidate,
+                            type = ExtractorLinkType.M3U8
+                        ) {
+                            referer = embedUrl
+                            this.headers = headers
+                            quality = Qualities.Unknown.value
+                        }
+                    )
+                    success = true
+                }
+                candidate.endsWith(".mp4", ignoreCase = true) -> {
+                    callback(
+                        newExtractorLink(
+                            source = "FrenchStream",
+                            name = "FrenchStream",
+                            url = candidate,
+                            type = ExtractorLinkType.VIDEO
+                        ) {
+                            referer = embedUrl
+                            this.headers = headers
+                            quality = Qualities.Unknown.value
+                        }
+                    )
+                    success = true
+                }
+                else -> {
+                    try {
+                        loadExtractor(candidate, embedUrl, subtitleCallback, callback)
+                        success = true
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+        }
+        return success
     }
 
     private fun gatherAjaxRequests(doc: Document, pageUrl: String, meta: ProviderMeta?): List<AjaxRequest> {
@@ -3590,6 +3685,19 @@ class ConfigDrivenProvider : MainAPI() {
                     }.getOrDefault(false)
                     if (handled) {
                         success = true
+                    }
+                } else if (meta?.slug.equals("frenchstream", ignoreCase = true)) {
+                    val handled = runCatching {
+                        handleFrenchStreamEmbed(link, pageUrl, subtitleCallback, hosterAwareCallback)
+                    }.getOrDefault(false)
+                    if (handled) {
+                        success = true
+                        return@forEach
+                    }
+                    try {
+                        loadExtractor(link, pageUrl, subtitleCallback, hosterAwareCallback)
+                        success = true
+                    } catch (_: Throwable) {
                     }
                 } else {
                     try {
