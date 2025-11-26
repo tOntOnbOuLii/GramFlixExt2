@@ -33,7 +33,7 @@
         },
         "FrenchStream": {
             "name": "French stream",
-            "baseUrl": "https://fs-miroir6.lol",
+            "baseUrl": "https://fs8.lol",
             "showOnHome": true
         },
         "HDss": {
@@ -69,7 +69,7 @@
         "WowFilms": {
             "name": "WoW-Films",
             "baseUrl": "https://wowfilms1125b.site",
-            "showOnHome": true
+            "showOnHome": false
         },
         "XalaFlix": {
             "name": "WalaFlix",
