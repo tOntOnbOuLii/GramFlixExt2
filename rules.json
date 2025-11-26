@@ -84,9 +84,9 @@
         "PapaduStream": {
             "searchPath": "index.php?do=search&subaction=search&story=",
             "searchParam": "story",
-            "itemSel": ".poster, div.poster, .short-item, .short, article.shortstory, div.shortstory",
-            "titleSel": ".poster__title a, .short-title a, .short-title, .shortstory__title a, .shortstory__title, .title, h3 a, a",
-            "urlSel": "a@href",
+            "itemSel": ".short, .upd-item, .tc_item, .poster, article.shortstory, div.shortstory",
+            "titleSel": ".short_title a, .short-title a, .tc_item .title, .upd-title, .poster__title a",
+            "urlSel": ".short_title a@href, .short-title a@href, .short_img@href, .tc_item@href, a@href",
             "embedSel": "iframe@src"
         },
         "Purstream": {
