@@ -23,7 +23,7 @@
     "url": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/fstreamgf.cs3",
     "language": "fr",
     "tvTypes": ["Movie", "TvSeries", "Anime"],
-    "authors": ["tOntOnbOuLii", "x-R0b0T-x"],
+    "authors": ["ayza","tOntOnbOuLii", "x-R0b0T-x"],
     "description": "Provider FstreamGF avec liens dynamiques",
     "repositoryUrl": "https://github.com/tOntOnbOuLii/GramFlixExt2",
     "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
