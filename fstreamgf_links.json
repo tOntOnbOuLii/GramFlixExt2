@@ -3,7 +3,7 @@
     "links": [
         {
             "provider": "Katrov",
-            "link": "https://www.titrov.fr",
+            "link": "https://titrov.com",
             "enabled": true
         },
         {
@@ -18,12 +18,12 @@
         },
         {
             "provider": "Frembed",
-            "link": "https://frembed.my",
+            "link": "https://frembed.pro",
             "enabled": true
         },
         {
             "provider": "BlackInk",
-            "link": "https://darkiworld15.com",
+            "link": "https://www.darkiworld.com",
             "enabled": true
         }
     ]
