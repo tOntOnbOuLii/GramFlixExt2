@@ -27,3 +27,7 @@ gramflix-all.cs3
 
 # Keep webpanel local only
 webpanel/
+
+# Sources à garder en local uniquement
+fstreamgf/src/
+app/src/
