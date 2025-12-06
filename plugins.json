@@ -2,7 +2,7 @@
   {
     "name": "GramFlix Stream",
     "internalName": "GramflixExtensions",
-    "version": 90,
+    "version": 91,
     "apiVersion": 1,
     "status": 1,
     "url": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/gramflix-all.cs3",
@@ -12,7 +12,7 @@
     "description": "Pack regroupant les providers pour GramFlix",
     "repositoryUrl": "https://github.com/tOntOnbOuLii/GramFlixExt2",
     "iconUrl": "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
-    "fileSize": 160306
+    "fileSize": 158495
   },
   {
     "name": "FstreamGF",
