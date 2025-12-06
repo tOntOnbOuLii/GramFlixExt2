@@ -3,12 +3,12 @@
     "providers": {
         "1JOUR1FILM": {
             "name": "1JOUR1FILM",
-            "baseUrl": "https://1jour1film1125c.site/",
+            "baseUrl": "https://1jour1film1125c.site",
             "showOnHome": true
         },
         "AnimeSama": {
             "name": "Anime-Sama",
-            "baseUrl": "https://anime-sama.org",
+            "baseUrl": "https://anime-sama.eu",
             "showOnHome": false
         },
         "CinePlateforme": {
