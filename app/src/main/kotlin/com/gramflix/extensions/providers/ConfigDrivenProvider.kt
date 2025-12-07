@@ -1872,7 +1872,7 @@ class ConfigDrivenProvider(
             val streamPage = pageUrl.trimEnd('/') + "/$alias"
             val urlTransforme = streamPage.removeSuffix("/").split("/").toMutableList()
 
-            var asSources: Map<String, List<String>> = mapOf()
+            var asSources: Map<String, List<String>> = emptyMap()
             val asSourcesVF: Map<String, List<String>>
             var vfPage: String? = null
 
@@ -1897,12 +1897,16 @@ class ConfigDrivenProvider(
                     else -> "$title ${i + 1}"
                 }
 
-                var datas = ""
+                val subLinks = mutableListOf<String>()
                 for ((_, link) in asSources) {
-                    if (i < link.size) datas += " " + link[i]
+                    if (i < link.size) subLinks += link[i]
                 }
-                if (datas.isNotBlank()) {
-                    val payload = "${streamPage}||${datas.trim()}"
+                if (subLinks.isNotEmpty()) {
+                    val payload = if (subLinks.isNotEmpty()) {
+                        "${streamPage}||" + subLinks.joinToString(" ")
+                    } else {
+                        streamPage
+                    }
                     episodeList += newEpisode(payload) {
                         name = nom
                         episode = i + 1
@@ -1911,13 +1915,17 @@ class ConfigDrivenProvider(
                     }
                 }
 
-                datas = ""
+                val dubLinks = mutableListOf<String>()
                 for ((_, link) in asSourcesVF) {
-                    if (i < link.size) datas += " " + link[i]
+                    if (i < link.size) dubLinks += link[i]
                 }
-                if (datas.isNotBlank()) {
+                if (dubLinks.isNotEmpty()) {
                     val ref = vfPage ?: streamPage
-                    val payload = "${ref}||${datas.trim()}"
+                    val payload = if (dubLinks.isNotEmpty()) {
+                        "${ref}||" + dubLinks.joinToString(" ")
+                    } else {
+                        ref
+                    }
                     vfEpisodeList += newEpisode(payload) {
                         name = nom
                         episode = i + 1
@@ -3745,6 +3753,16 @@ class ConfigDrivenProvider(
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
+            if ((loadData.slug.equals("AnimeSama", ignoreCase = true) || isAnimeSamaUrl(pageUrl)) && pageUrl.isNotBlank()) {
+                val episodeIndex = loadData.episode ?: 0
+                val sources = retrieveAnimeSamaSources(pageUrl)
+                val merged = sources.values.toList()
+                val link = merged.firstOrNull { it.size > episodeIndex }?.getOrNull(episodeIndex)
+                if (!link.isNullOrBlank()) {
+                    runCatching { loadExtractor(link, pageUrl, subtitleCallback, hosterAwareCallback) }
+                    return true
+                }
+            }
             val nebryxEntry = parseNebryxUrl(pageUrl)
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
