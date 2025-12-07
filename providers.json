@@ -9,7 +9,7 @@
         "AnimeSama": {
             "name": "Anime-Sama",
             "baseUrl": "https://anime-sama.eu",
-            "showOnHome": false
+            "showOnHome": true
         },
         "CinePlateforme": {
             "name": "CinePlateforme",
@@ -19,7 +19,7 @@
         "Cinepulse": {
             "name": "Cinepulse",
             "baseUrl": "https://riverlanes.site/cinepulse/",
-            "showOnHome": false
+            "showOnHome": true
         },
         "CoFliX": {
             "name": "CoFliX",
@@ -39,12 +39,12 @@
         "HDss": {
             "name": "HDss",
             "baseUrl": "https://hdss.now",
-            "showOnHome": false
+            "showOnHome": true
         },
         "MoiFliX": {
             "name": "MoiFliX",
             "baseUrl": "https://moiflix.org",
-            "showOnHome": false
+            "showOnHome": true
         },
         "Nebryx": {
             "name": "Nebryx",
@@ -59,12 +59,12 @@
         "Purstream": {
             "name": "Purstream",
             "baseUrl": "https://purstream.to",
-            "showOnHome": false
+            "showOnHome": true
         },
         "SenpaiStream": {
             "name": "Senpai-Stream",
             "baseUrl": "https://senpai-stream.skin",
-            "showOnHome": false
+            "showOnHome": true
         },
         "WowFilms": {
             "name": "WoW-Films",
