@@ -4086,6 +4086,48 @@ class ConfigDrivenProvider(
         return bestId
     }
 
+    private fun parsePapaduEpisodes(doc: Document, meta: ProviderMeta?, pageUrl: String): List<Episode> {
+        val episodes = mutableListOf<Episode>()
+        val seen = hashSetOf<String>()
+        // Sidebar list of episodes
+        doc.select(".side-bc a.top-item[href]").forEachIndexed { idx, anchor ->
+            val href = anchor.absUrl("href").takeIf { it.isNotBlank() } ?: return@forEachIndexed
+            if (!seen.add(href)) return@forEachIndexed
+            val text = anchor.text().trim().ifBlank {
+                anchor.selectFirst(".side-seas-over_2")?.text()?.trim()
+            }
+            val (seasonParsed, episodeParsed) = parseEpisodeNumbersFromText(text)
+            val (seasonUrl, episodeUrl) = parsePapaduNumbersFromUrl(href)
+            val season = seasonUrl ?: seasonParsed ?: 1
+            val episode = episodeUrl ?: episodeParsed ?: (idx + 1)
+            val encoded = encodeLoadData(href, meta?.slug, episode = episode)
+            episodes += newEpisode(encoded) {
+                name = "Episode $episode"
+                this.season = season
+                this.episode = episode
+            }
+        }
+        // Fallback from select nav (if present)
+        if (episodes.isEmpty()) {
+            doc.select("select.nav-episode-select option[value]").forEachIndexed { idx, option ->
+                val href = option.absUrl("value").takeIf { it.isNotBlank() } ?: return@forEachIndexed
+                if (!seen.add(href)) return@forEachIndexed
+                val text = option.text()
+                val (seasonParsed, episodeParsed) = parseEpisodeNumbersFromText(text)
+                val (seasonUrl, episodeUrl) = parsePapaduNumbersFromUrl(href)
+                val season = seasonUrl ?: seasonParsed ?: 1
+                val episode = episodeUrl ?: episodeParsed ?: (idx + 1)
+                val encoded = encodeLoadData(href, meta?.slug, episode = episode)
+                episodes += newEpisode(encoded) {
+                    name = "Episode $episode"
+                    this.season = season
+                    this.episode = episode
+                }
+            }
+        }
+        return episodes
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -4269,11 +4311,18 @@ class ConfigDrivenProvider(
                 val tmdbId = findTmdbIdForTitle(papaduMeta?.title, papaduMeta?.year)
                 if (tmdbId != null && episodeNumber != null) {
                     val embedUrl = "https://vidsrc.net/embed/tv?tmdb=$tmdbId&season=$seasonNumber&episode=$episodeNumber"
-                    val handled = runCatching {
-                        loadExtractor(embedUrl, pageUrl, subtitleCallback, hosterAwareCallback)
-                        true
-                    }.getOrElse { false }
-                    success = handled || success
+                    val hosters = listOf("VOE", "Doodstream", "Netu", "Uqload", "Vidoza")
+                    hosters.forEach { hosterName ->
+                        callback(
+                            newExtractorLink(
+                                source = "PapaduStream",
+                                name = "$hosterName (Papadu fallback)",
+                                url = embedUrl,
+                                type = ExtractorLinkType.M3U8
+                            )
+                        )
+                    }
+                    success = true
                 }
             }
             success
@@ -4558,8 +4607,6 @@ class ConfigDrivenProvider(
         }
     }
 }
-
-
 
 
 
