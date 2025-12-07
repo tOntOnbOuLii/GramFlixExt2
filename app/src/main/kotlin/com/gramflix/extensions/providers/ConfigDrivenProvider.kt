@@ -10,6 +10,7 @@ import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SeasonData
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
@@ -18,6 +19,7 @@ import com.lagradost.cloudstream3.addSeasonNames
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newAnimeLoadResponse
+import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
@@ -1764,206 +1766,18 @@ class ConfigDrivenProvider(
         )
     }
 
-    private suspend fun fetchAnimeSamaArrays(pageUrl: String, doc: Document? = null): Map<Int, List<String>>? {
-        val document = doc ?: fetchHtml(pageUrl, referer = pageUrl).document
-        val script = document.selectFirst("script[src*=\"episodes.js\"]") ?: return null
-        val rawSrc = script.attr("src").takeIf { it.isNotBlank() } ?: return null
-        val scriptUrl = script.absUrl("src").takeIf { it.isNotBlank() } ?: resolveAgainst(pageUrl, rawSrc) ?: rawSrc
-        val js = runCatching { app.get(scriptUrl, referer = pageUrl).text }
-            .recoverCatching { app.get(scriptUrl, referer = null).text }
-            .getOrNull() ?: return null
-        val arrays = mutableMapOf<Int, List<String>>()
-        val regex = Regex("""var\s+(eps\d+)\s*=\s*\[(.*?)];""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE))
-        regex.findAll(js).forEach { match ->
-            val name = match.groupValues.getOrNull(1) ?: return@forEach
-            val readerIndex = name.removePrefix("eps").toIntOrNull() ?: return@forEach
-            val body = match.groupValues.getOrNull(2) ?: return@forEach
-            val links = Regex("""['"]([^'"]+)['"]""")
-                .findAll(body)
-                .mapNotNull { it.groupValues.getOrNull(1)?.trim() }
-                .filter { it.isNotEmpty() }
-                .toList()
-            if (links.isNotEmpty()) arrays[readerIndex] = links
-        }
-        if (arrays.isEmpty()) return null
-        if (arrays.containsKey(1) && arrays.containsKey(2)) {
-            val first = arrays[1]
-            val second = arrays[2]
-            if (first != null && second != null) {
-                arrays[1] = second
-                arrays[2] = first
-            }
-        }
-        return arrays
-    }
-
-    private fun buildAnimeSamaEpisodes(
-        meta: ProviderMeta,
-        pageUrl: String,
-        arrays: Map<Int, List<String>>,
-        title: String,
-        poster: String?
-    ): List<Episode> {
-        val count = arrays[1]?.size ?: arrays.values.maxOfOrNull { it.size } ?: 0
-        if (count <= 0) return emptyList()
-        val episodes = mutableListOf<Episode>()
-        for (index in 0 until count) {
-            val dataPayload = encodeLoadData(
-                url = pageUrl,
-                slug = meta.slug,
-                title = title,
-                poster = poster,
-                episode = index
-            )
-            episodes += newEpisode(dataPayload) {
-                name = "Episode ${index + 1}"
-                season = 1
-                episode = index + 1
-                posterUrl = poster
-            }
-        }
-        return episodes
-    }
-
-    private suspend fun loadAnimeSamaLinks(
-        pageUrl: String,
-        episodeIndex: Int,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        val arrays = fetchAnimeSamaArrays(pageUrl) ?: return false
-        val dedupe = hashSetOf<String>()
-        var success = false
-        arrays.toSortedMap().values.forEach { list ->
-            val link = list.getOrNull(episodeIndex) ?: list.getOrNull(0) ?: return@forEach
-            if (!dedupe.add(link)) return@forEach
-            runCatching {
-                loadExtractor(link, pageUrl, subtitleCallback, callback)
-                success = true
-            }
-        }
-        return success
-    }
-
-    private fun parseAnimeSamaPanels(doc: Document, baseUrl: String): List<Pair<String, String>> {
-        val regex = Regex("""panneauAnime\("([^"]+)",\s*"([^"]+)""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        val panels = mutableListOf<Pair<String, String>>()
-        val seen = hashSetOf<String>()
-        val html = doc.outerHtml()
-        regex.findAll(html).forEach { match ->
-            val name = match.groupValues.getOrNull(1)?.trim().orEmpty()
-            val rawUrl = match.groupValues.getOrNull(2)?.trim().orEmpty()
-            if (name.isBlank() || rawUrl.isBlank()) return@forEach
-            val variants = linkedSetOf(rawUrl)
-            fun addVariant(from: String, to: String) {
-                if (rawUrl.contains(from, ignoreCase = true)) {
-                    variants += rawUrl.replace(from, to, ignoreCase = true)
-                }
-            }
-            addVariant("/vostfr/", "/vf/")
-            addVariant("/vostfr/", "/vo/")
-            addVariant("/vf/", "/vostfr/")
-            addVariant("/vf/", "/vo/")
-            addVariant("/vo/", "/vostfr/")
-            variants.forEach { variant ->
-                val resolved = resolveAgainst(baseUrl, variant) ?: variant
-                if (seen.add(resolved)) {
-                    val suffix = when {
-                        variant.contains("/vf/", ignoreCase = true) -> " VF"
-                        variant.contains("/vo/", ignoreCase = true) -> " VO"
-                        variant.contains("/vostfr/", ignoreCase = true) -> " VOSTFR"
-                        else -> ""
-                    }
-                    panels += name + suffix to resolved
-                }
-            }
-        }
-        if (panels.isEmpty()) {
-            // Fallback panels (common patterns when scripts are missing)
-            val normalizedBase = baseUrl.trim().trimEnd('/') + "/"
-            val defaults = listOf(
-                "Saison 1 VOSTFR" to "saison1/vostfr/",
-                "Saison 1 VF" to "saison1/vf/",
-                "Saison 1 VO" to "saison1/vo/",
-                "Film VOSTFR" to "film/vostfr/",
-                "Film VF" to "film/vf/",
-                "Film VO" to "film/vo/"
-            )
-            defaults.forEach { (name, path) ->
-                val resolved = resolveAgainst(normalizedBase, path) ?: (normalizedBase + path)
-                if (seen.add(resolved)) {
-                    panels += name to resolved
-                }
-            }
-        }
-        return panels
-    }
-
-    private suspend fun fetchAnimeSamaEpisodeLinks(streamPage: String): List<List<String>> {
-        val request = runCatching { app.get(streamPage) }.getOrNull() ?: return emptyList()
-        if (!request.isSuccessful) return emptyList()
-        val doc = request.document
-        val scriptContainer = doc.selectFirst("#sousBlocMiddle script")?.toString() ?: ""
-        val episodeKeyRegex = Regex("""<script[^>]*src=['"]([^'"]*episodes\.js\?filever=\d+)['"][^>]*>""")
-        val episodeKey = episodeKeyRegex.find(scriptContainer)?.groupValues?.getOrNull(1) ?: return emptyList()
-        val episodesUrl = resolveAgainst(streamPage, episodeKey) ?: "${streamPage.trimEnd('/')}/$episodeKey"
-        val js = runCatching { app.get(episodesUrl, referer = streamPage).text }
-            .recoverCatching { app.get(episodesUrl).text }
-            .getOrNull()
-            ?: return emptyList()
-        // Parse all eps arrays to keep episode order intact.
-        val regex = Regex("""var\s+eps\d+\s*=\s*\[(.*?)];""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        val arrays = mutableListOf<List<String>>()
-        regex.findAll(js).forEach { match ->
-            val body = match.groupValues.getOrNull(1) ?: return@forEach
-            val links = Regex("""['"]([^'"]+)['"]""")
-                .findAll(body)
-                .mapNotNull { it.groupValues.getOrNull(1)?.trim() }
-                .filter { it.isNotEmpty() }
-                .toList()
-            if (links.isNotEmpty()) arrays += links
-        }
-        if (arrays.isEmpty()) return emptyList()
-        val maxCount = arrays.maxOfOrNull { it.size } ?: 0
-        val episodes = mutableListOf<List<String>>()
-        for (i in 0 until maxCount) {
-            val perEpisode = mutableListOf<String>()
-            arrays.forEach { list ->
-                list.getOrNull(i)?.let { perEpisode += it }
-            }
-            episodes += perEpisode
-        }
-        return episodes
-    }
-
     private suspend fun fetchAnimeSamaHome(meta: ProviderMeta): List<HomePageList> {
-        val doc = fetchHtml(meta.baseUrl, referer = null).document
+        val doc = app.get(meta.baseUrl, cacheTime = 60).document
         val sections = listOf(
             "Derniers épisodes ajoutés" to "#containerAjoutsAnimes a",
             "Derniers contenus sortis" to "#containerSorties a",
             "Les classiques" to "#containerClassiques a",
             "Découvrez des pépites" to "#containerPepites a"
         )
-        val dedupe = hashSetOf<String>()
         val homeLists = mutableListOf<HomePageList>()
         sections.forEach { (name, selector) ->
             val items = doc.select(selector).mapNotNull { anchor ->
-                val rawHref = anchor.attr("href").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val resolved = resolveAgainst(meta.baseUrl, rawHref) ?: rawHref
-                if (!dedupe.add(resolved)) return@mapNotNull null
-                val poster = anchor.selectFirst("img")?.attr("src")?.takeIf { it.isNotBlank() }
-                var title = anchor.selectFirst("h1")?.text().orEmpty()
-                if (title.isBlank()) title = anchor.selectFirst("h3")?.text().orEmpty()
-                val item = createSearchItem(
-                    meta = meta,
-                    title = title,
-                    url = resolved,
-                    poster = poster,
-                    includeProvider = false,
-                    query = null,
-                    tvType = TvType.Anime
-                ) ?: return@mapNotNull null
-                item.response
+                animeSamaSearchResponse(anchor, meta.baseUrl)?.response
             }
             if (items.isNotEmpty()) {
                 homeLists += HomePageList(name, items, isHorizontalImages = true)
@@ -1971,7 +1785,156 @@ class ConfigDrivenProvider(
         }
         return homeLists
     }
+    private fun animeSamaSearchResponse(anchor: Element, baseUrl: String, query: String? = null): SearchItem? {
+        var title = anchor.selectFirst("h1")?.text().orEmpty()
+        if (title.isBlank()) title = anchor.selectFirst("h3")?.text().orEmpty()
+        var url = anchor.attr("href").takeIf { it.isNotBlank() } ?: anchor.selectFirst("a")?.attr("href").orEmpty()
+        if (url.isBlank()) return null
+        val resolved = resolveAgainst(baseUrl, url) ?: url
+        url = if (resolved.split("/").size > 5) resolved.split("/").take(5).joinToString("/") else resolved
+        rememberSlugForUrl(url, "AnimeSama")
+        val poster = anchor.selectFirst("img")?.attr("src")?.takeIf { it.isNotBlank() }
+        val response = newAnimeSearchResponse(title, url, TvType.Anime).apply {
+            poster?.let { posterUrl = it }
+        }
+        val score = computeMatchScore(title, query)
+        if (!query.isNullOrBlank() && score <= 0) return null
+        return SearchItem(response, score)
+    }
 
+    private suspend fun retrieveAnimeSamaSources(streamPage: String): Map<String, List<String>> {
+        val request = app.get(streamPage)
+        if (!request.isSuccessful) return emptyMap()
+        val doc = request.document
+        val epiKey = doc.selectFirst("#sousBlocMiddle script")?.toString() ?: return emptyMap()
+        val re = Regex("""<script[^>]*src=['"]([^'"]*episodes\.js\?filever=\d+)['"][^>]*>""")
+        val episodeKey = re.find(epiKey)?.groupValues?.getOrNull(1) ?: return emptyMap()
+        val episodesUrl = resolveAgainst(streamPage, episodeKey) ?: (streamPage.trimEnd('/') + "/$episodeKey")
+        val rawLinks = app.get(episodesUrl, referer = streamPage).text
+        val urls = """['"]https?://[^\s'"]+['"]""".toRegex()
+            .findAll(rawLinks)
+            .map { it.value.trim('\'', '"') }
+            .toList()
+        if (urls.isEmpty()) return emptyMap()
+        return urls.groupBy { url ->
+            when {
+                url.contains("sibnet.ru") -> "Sibnet"
+                url.contains("vidmoly.to") -> "Vidmoly"
+                url.contains("oneupload.to") -> "Oneupload"
+                url.contains("sendvid.com") -> "Sendvid"
+                url.contains("vk.com") -> "Vk"
+                else -> "Other"
+            }
+        }
+    }
+
+    private suspend fun loadAnimeSama(meta: ProviderMeta, pageUrl: String): LoadResponse? {
+        val doc = app.get(pageUrl, cacheTime = 60).document
+        val title = doc.selectFirst("h4#titreOeuvre")?.text()?.ifBlank { null } ?: return null
+        val otherTitles = doc.selectFirst("#titreAlter")?.text()
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+        val image = doc.selectFirst("#coverOeuvre")?.attr("src")?.takeIf { it.isNotBlank() }
+        val tags = doc.selectFirst("a.text-sm.text-gray-300.mt-2")?.text()
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+        val synopsis = doc.selectFirst("p.text-sm.text-gray-400.mt-2")?.text()?.trim().orEmpty()
+
+        val rawSeasonData = doc.selectFirst("div.flex.flex-wrap.overflow-y-hidden.justify-start.bg-slate-900.bg-opacity-70.rounded.mt-2.h-auto script")
+            ?.toString()
+            ?: ""
+        val extractedData = rawSeasonData.split("/*", "*/").getOrNull(2) ?: ""
+        val pattern = Regex("""panneauAnime\("([^"]+)",\s*"([^"]+)"\);""")
+        val panneauMap = linkedMapOf<String, String>()
+        pattern.findAll(extractedData).forEach {
+            val season = it.groupValues.getOrNull(1) ?: return@forEach
+            val alias = it.groupValues.getOrNull(2) ?: return@forEach
+            panneauMap[season] = alias
+        }
+        if (panneauMap.isEmpty()) return null
+
+        val seasonList = mutableListOf<SeasonData>()
+        var index = 1
+        panneauMap.forEach { (season, _) ->
+            seasonList += SeasonData(index, season)
+            index++
+        }
+
+        var season = 1
+        val episodeList = mutableListOf<Episode>()
+        val vfEpisodeList = mutableListOf<Episode>()
+
+        panneauMap.forEach { (seasonName, alias) ->
+            val streamPage = pageUrl.trimEnd('/') + "/$alias"
+            val urlTransforme = streamPage.removeSuffix("/").split("/").toMutableList()
+
+            var asSources: Map<String, List<String>> = mapOf()
+            val asSourcesVF: Map<String, List<String>>
+
+            if (urlTransforme.isNotEmpty() && urlTransforme[urlTransforme.size - 1].lowercase(Locale.ROOT) != "vf") {
+                asSources = retrieveAnimeSamaSources(streamPage)
+                urlTransforme[urlTransforme.size - 1] = "vf"
+                val vfPage = urlTransforme.joinToString("/")
+                asSourcesVF = retrieveAnimeSamaSources(vfPage)
+            } else {
+                asSourcesVF = retrieveAnimeSamaSources(streamPage)
+            }
+
+            val maxNbEpisodes = asSources.values.maxOfOrNull { it.size }
+                ?: asSourcesVF.values.maxOfOrNull { it.size } ?: 0
+
+            for (i in 0 until maxNbEpisodes) {
+                val nom = when {
+                    seasonName.contains("Saison", ignoreCase = true) ->
+                        "$title S${season}EP${(i + 1).toString().padStart(2, '0')}"
+                    seasonName.lowercase(Locale.ROOT) in setOf("film", "oav", "films") ->
+                        "$title $seasonName ${i + 1}"
+                    else -> "$title ${i + 1}"
+                }
+
+                var datas = ""
+                for ((_, link) in asSources) {
+                    if (i < link.size) datas += " " + link[i]
+                }
+                if (datas.isNotBlank()) {
+                    episodeList += newEpisode(datas.trim()) {
+                        name = nom
+                        episode = i + 1
+                        posterUrl = image
+                        this.season = season
+                    }
+                }
+
+                datas = ""
+                for ((_, link) in asSourcesVF) {
+                    if (i < link.size) datas += " " + link[i]
+                }
+                if (datas.isNotBlank()) {
+                    vfEpisodeList += newEpisode(datas.trim()) {
+                        name = nom
+                        episode = i + 1
+                        posterUrl = image
+                        this.season = season
+                    }
+                }
+            }
+            season++
+        }
+
+        return newAnimeLoadResponse(title, pageUrl, TvType.Anime) {
+            posterUrl = image
+            plot = synopsis
+            this.tags = tags
+            synonyms = otherTitles
+            addSeasonNames(seasonList)
+            addEpisodes(DubStatus.Subbed, episodeList)
+            if (vfEpisodeList.isNotEmpty()) addEpisodes(DubStatus.Dubbed, vfEpisodeList)
+        }
+    }
     private suspend fun searchAnimeSama(meta: ProviderMeta, query: String): List<SearchItem> {
         val searchUrl = "${meta.baseUrl.trimEnd('/')}/template-php/defaut/fetch.php"
         val doc = runCatching {
@@ -1982,23 +1945,8 @@ class ConfigDrivenProvider(
                 headers = buildAjaxHeaders(searchUrl, meta.baseUrl)
             ).document
         }.getOrNull() ?: return emptyList()
-        val dedupe = hashSetOf<String>()
         return doc.select("a[href]").mapNotNull { anchor ->
-            val rawHref = anchor.attr("href").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val resolved = resolveAgainst(meta.baseUrl, rawHref) ?: rawHref
-            if (!dedupe.add(resolved)) return@mapNotNull null
-            val poster = anchor.selectFirst("img")?.attr("src")?.takeIf { it.isNotBlank() }
-            var title = anchor.selectFirst("h1")?.text().orEmpty()
-            if (title.isBlank()) title = anchor.selectFirst("h3")?.text().orEmpty()
-            createSearchItem(
-                meta = meta,
-                title = title,
-                url = resolved,
-                poster = poster,
-                includeProvider = true,
-                query = query,
-                tvType = TvType.Anime
-            )
+            animeSamaSearchResponse(anchor, meta.baseUrl, query)
         }
     }
 
@@ -3731,67 +3679,8 @@ class ConfigDrivenProvider(
                 ?: name
             val poster = extractPosterFromDoc(doc, pageLocation)
             if (meta != null && isAnimeSama(meta)) {
-                val panels = parseAnimeSamaPanels(doc, pageLocation)
-                // Film panels doivent devenir une saison supplémentaire avec un seul épisode.
-                val (filmPanels, seasonPanels) = panels.partition { it.first.contains("film", ignoreCase = true) }
-                val orderedPanels = seasonPanels + filmPanels
-
-                val seasonList = mutableListOf<com.lagradost.cloudstream3.SeasonData>()
-                var seasonIndex = 1
-                orderedPanels.forEach { (name, _) ->
-                    seasonList += com.lagradost.cloudstream3.SeasonData(seasonIndex, name)
-                    seasonIndex++
-                }
-
-                val subbedEpisodes = mutableListOf<Episode>()
-                val dubbedEpisodes = mutableListOf<Episode>()
-                seasonIndex = 1
-                orderedPanels.forEach { (panelName, panelUrl) ->
-                    val vostfrEpisodes = fetchAnimeSamaEpisodeLinks(panelUrl)
-                    val vfUrl = panelUrl.replace("/vostfr/", "/vf/").replace("/vo/", "/vf/")
-                    val vfEpisodes = fetchAnimeSamaEpisodeLinks(vfUrl)
-                    val isFilm = panelName.contains("film", ignoreCase = true)
-                    val maxCount = when {
-                        isFilm -> 1
-                        else -> maxOf(vostfrEpisodes.size, vfEpisodes.size)
-                    }
-                    for (i in 0 until maxCount) {
-                        val baseName = when {
-                            isFilm -> if (panelName.isNotBlank()) panelName else "Film"
-                            else -> "$panelName - Episode ${i + 1}"
-                        }
-                        val subLinks = vostfrEpisodes.getOrNull(i) ?: emptyList()
-                        if (subLinks.isNotEmpty()) {
-                            val data = subLinks.joinToString(" ")
-                            subbedEpisodes += newEpisode(data) {
-                                name = baseName
-                                episode = i + 1
-                                season = seasonIndex
-                                posterUrl = poster ?: posterHint
-                            }
-                        }
-                        val dubLinks = vfEpisodes.getOrNull(i) ?: emptyList()
-                        if (dubLinks.isNotEmpty()) {
-                            val data = dubLinks.joinToString(" ")
-                            dubbedEpisodes += newEpisode(data) {
-                                name = baseName
-                                episode = i + 1
-                                season = seasonIndex
-                                posterUrl = poster ?: posterHint
-                            }
-                        }
-                    }
-                    seasonIndex++
-                }
-                if (subbedEpisodes.isNotEmpty() || dubbedEpisodes.isNotEmpty()) {
-                    return newAnimeLoadResponse(title, pageLocation, TvType.Anime) {
-                        plot = description
-                        posterUrl = poster ?: posterHint
-                        addSeasonNames(seasonList)
-                        if (subbedEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subbedEpisodes)
-                        if (dubbedEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubbedEpisodes)
-                    }
-                }
+                val anime = runCatching { loadAnimeSama(meta, pageLocation) }.getOrNull()
+                if (anime != null) return anime
             }
             val episodes = parseTvEpisodes(meta, doc, pageLocation)
             if (episodes.isNotEmpty()) {
@@ -3849,13 +3738,6 @@ class ConfigDrivenProvider(
             val loadData = decodeLoadData(data)
             val pageUrl = loadData.url
             val imdbId = loadData.imdbId
-            if (loadData.slug.equals("AnimeSama", ignoreCase = true) || isAnimeSamaUrl(pageUrl)) {
-                val episodeIndex = loadData.episode ?: 0
-                val okAnime = runCatching {
-                    loadAnimeSamaLinks(pageUrl, episodeIndex, subtitleCallback, hosterAwareCallback)
-                }.getOrElse { false }
-                if (okAnime) return true
-            }
             val nebryxEntry = parseNebryxUrl(pageUrl)
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
                 val ok = loadNebryxLinks(loadData, subtitleCallback, hosterAwareCallback)
@@ -4276,3 +4158,17 @@ class ConfigDrivenProvider(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
