@@ -37,7 +37,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider 1JOUR1FILM standalone",
+        "description":  "FONCTIONNEL",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159936
@@ -58,7 +58,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider AnimeSama standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  179709
@@ -80,7 +80,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider CinePlateforme standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159912
@@ -102,7 +102,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider Cinepulse standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159924
@@ -124,7 +124,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider CoFliX standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159925
@@ -146,7 +146,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider Flemmix standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159927
@@ -154,7 +154,7 @@
     {
         "name":  "FrenchStreamGF",
         "internalName":  "frenchstreamgf",
-        "version":  94,
+        "version":  110,
         "apiVersion":  1,
         "status":  1,
         "url":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/frenchstreamgf.cs3",
@@ -168,7 +168,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider FrenchStream standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  179707
@@ -190,7 +190,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider HDss standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159929
@@ -212,7 +212,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider MoiFliX standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159910
@@ -234,7 +234,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider Nebryx standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159923
@@ -256,7 +256,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider PapaduStream standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159938
@@ -278,7 +278,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider Purstream standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159923
@@ -300,7 +300,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider SenpaiStream standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159938
@@ -322,7 +322,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider WoW-Films standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159926
@@ -344,7 +344,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider XalaFlix standalone",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  159928
@@ -367,7 +367,7 @@
                         "tOntOnbOuLii",
                         "x-R0b0T-x"
                     ],
-        "description":  "Provider FstreamGF avec liens dynamiques",
+        "description":  "EN DEVELOPPEMENT",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
         "fileSize":  126799
