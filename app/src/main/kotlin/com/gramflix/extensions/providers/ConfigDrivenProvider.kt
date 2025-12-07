@@ -1899,31 +1899,41 @@ class ConfigDrivenProvider(
         return panels
     }
 
-    private suspend fun fetchAnimeSamaSources(streamPage: String): Map<String, List<String>> {
-        val request = runCatching { app.get(streamPage) }.getOrNull() ?: return emptyMap()
-        if (!request.isSuccessful) return emptyMap()
+    private suspend fun fetchAnimeSamaEpisodeLinks(streamPage: String): List<List<String>> {
+        val request = runCatching { app.get(streamPage) }.getOrNull() ?: return emptyList()
+        if (!request.isSuccessful) return emptyList()
         val doc = request.document
         val scriptContainer = doc.selectFirst("#sousBlocMiddle script")?.toString() ?: ""
         val episodeKeyRegex = Regex("""<script[^>]*src=['"]([^'"]*episodes\.js\?filever=\d+)['"][^>]*>""")
-        val episodeKey = episodeKeyRegex.find(scriptContainer)?.groupValues?.getOrNull(1) ?: return emptyMap()
+        val episodeKey = episodeKeyRegex.find(scriptContainer)?.groupValues?.getOrNull(1) ?: return emptyList()
         val episodesUrl = resolveAgainst(streamPage, episodeKey) ?: "${streamPage.trimEnd('/')}/$episodeKey"
         val js = runCatching { app.get(episodesUrl, referer = streamPage).text }
             .recoverCatching { app.get(episodesUrl).text }
             .getOrNull()
-            ?: return emptyMap()
-        val urlRegex = Regex("""['"]https?://[^\s'"]+['"]""")
-        val urls = urlRegex.findAll(js).map { it.value.trim('\'', '"') }.toList()
-        if (urls.isEmpty()) return emptyMap()
-        return urls.groupBy { url ->
-            when {
-                url.contains("sibnet.ru") -> "Sibnet"
-                url.contains("vidmoly.to") -> "Vidmoly"
-                url.contains("oneupload.to") -> "OneUpload"
-                url.contains("sendvid.com") -> "Sendvid"
-                url.contains("vk.com") -> "Vk"
-                else -> "Other"
-            }
+            ?: return emptyList()
+        // Parse all eps arrays to keep episode order intact.
+        val regex = Regex("""var\s+eps\d+\s*=\s*\[(.*?)];""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val arrays = mutableListOf<List<String>>()
+        regex.findAll(js).forEach { match ->
+            val body = match.groupValues.getOrNull(1) ?: return@forEach
+            val links = Regex("""['"]([^'"]+)['"]""")
+                .findAll(body)
+                .mapNotNull { it.groupValues.getOrNull(1)?.trim() }
+                .filter { it.isNotEmpty() }
+                .toList()
+            if (links.isNotEmpty()) arrays += links
         }
+        if (arrays.isEmpty()) return emptyList()
+        val maxCount = arrays.maxOfOrNull { it.size } ?: 0
+        val episodes = mutableListOf<List<String>>()
+        for (i in 0 until maxCount) {
+            val perEpisode = mutableListOf<String>()
+            arrays.forEach { list ->
+                list.getOrNull(i)?.let { perEpisode += it }
+            }
+            episodes += perEpisode
+        }
+        return episodes
     }
 
     private suspend fun fetchAnimeSamaHome(meta: ProviderMeta): List<HomePageList> {
@@ -3737,23 +3747,20 @@ class ConfigDrivenProvider(
                 val dubbedEpisodes = mutableListOf<Episode>()
                 seasonIndex = 1
                 orderedPanels.forEach { (panelName, panelUrl) ->
-                    val vostfrSources = fetchAnimeSamaSources(panelUrl)
+                    val vostfrEpisodes = fetchAnimeSamaEpisodeLinks(panelUrl)
                     val vfUrl = panelUrl.replace("/vostfr/", "/vf/").replace("/vo/", "/vf/")
-                    val vfSources = fetchAnimeSamaSources(vfUrl)
+                    val vfEpisodes = fetchAnimeSamaEpisodeLinks(vfUrl)
                     val isFilm = panelName.contains("film", ignoreCase = true)
                     val maxCount = when {
                         isFilm -> 1
-                        else -> listOf(
-                            vostfrSources.values.maxOfOrNull { it.size } ?: 0,
-                            vfSources.values.maxOfOrNull { it.size } ?: 0
-                        ).maxOrNull() ?: 0
+                        else -> maxOf(vostfrEpisodes.size, vfEpisodes.size)
                     }
                     for (i in 0 until maxCount) {
                         val baseName = when {
                             isFilm -> if (panelName.isNotBlank()) panelName else "Film"
                             else -> "$panelName - Episode ${i + 1}"
                         }
-                        val subLinks = vostfrSources.values.flatMap { list -> list.getOrNull(i)?.let { listOf(it) } ?: emptyList() }
+                        val subLinks = vostfrEpisodes.getOrNull(i) ?: emptyList()
                         if (subLinks.isNotEmpty()) {
                             val data = subLinks.joinToString(" ")
                             subbedEpisodes += newEpisode(data) {
@@ -3763,7 +3770,7 @@ class ConfigDrivenProvider(
                                 posterUrl = poster ?: posterHint
                             }
                         }
-                        val dubLinks = vfSources.values.flatMap { list -> list.getOrNull(i)?.let { listOf(it) } ?: emptyList() }
+                        val dubLinks = vfEpisodes.getOrNull(i) ?: emptyList()
                         if (dubLinks.isNotEmpty()) {
                             val data = dubLinks.joinToString(" ")
                             dubbedEpisodes += newEpisode(data) {
