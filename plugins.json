@@ -61,12 +61,12 @@
         "description":  "Provider AnimeSama standalone",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
-        "fileSize":  179707
+        "fileSize":  179709
     },
     {
         "name":  "CinePlateformeGF",
         "internalName":  "cineplateformegf",
-        "version":  94,
+        "version":  110,
         "apiVersion":  1,
         "status":  1,
         "url":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/cineplateformegf.cs3",
@@ -171,7 +171,7 @@
         "description":  "Provider FrenchStream standalone",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
-        "fileSize":  159942
+        "fileSize":  179707
     },
     {
         "name":  "HDssGF",
