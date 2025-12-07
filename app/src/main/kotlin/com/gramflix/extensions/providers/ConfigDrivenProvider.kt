@@ -65,7 +65,7 @@ class ConfigDrivenProvider(
     override var name = forcedDisplayName?.let { ensureGFSuffix(it) } ?: "GramFlix Stream GF"
     override var mainUrl = "https://webpanel.invalid"
     override var lang = "fr"
-    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
+    override val supportedTypes = setOf(TvType.TvSeries, TvType.Anime)
     // Home réactivée (mais filtrée) pour exposer FrenchStream sur l'accueil
     override val hasMainPage = true
 
@@ -3024,10 +3024,11 @@ class ConfigDrivenProvider(
         } else {
             safeTitle
         }
-        val resolvedType = when (tvType) {
-            TvType.Anime -> TvType.Anime
-            TvType.TvSeries -> TvType.TvSeries
-            else -> TvType.Movie
+        val resolvedType = when {
+            meta.slug.equals("AnimeSama", ignoreCase = true) -> TvType.Anime
+            tvType == TvType.Anime -> TvType.Anime
+            tvType == TvType.TvSeries -> TvType.TvSeries
+            else -> TvType.Anime
         }
         val finalUrl = if (meta.slug.equals(NEBRYX_SLUG, ignoreCase = true) || meta.slug.equals(COFLIX_SLUG, ignoreCase = true)) {
             encodeLoadData(url, meta.slug)
@@ -3796,17 +3797,24 @@ class ConfigDrivenProvider(
                     (posterHint ?: poster)?.let { posterUrl = it }
                 }
             }
+            // Fallback: always emit an anime/series (never movie) with a single placeholder episode.
             val dataPayload = encodeLoadData(
                 url = pageLocation,
                 slug = meta?.slug ?: slugHint,
-                imdbId = imdbFromData,
                 title = title,
-                poster = posterHint ?: poster,
-                year = yearHint
+                poster = posterHint ?: poster
             )
-            newMovieLoadResponse(title, pageLocation, TvType.Movie, dataUrl = dataPayload) {
+            val placeholder = newEpisode(dataPayload) {
+                name = "Episode 1"
+                season = 1
+                episode = 1
+                posterUrl = poster ?: posterHint
+            }
+            newAnimeLoadResponse(title, pageLocation, TvType.Anime) {
                 description?.let { plot = it }
                 (posterHint ?: poster)?.let { posterUrl = it }
+                addSeasonNames(listOf(com.lagradost.cloudstream3.SeasonData(1, "Saison 1")))
+                addEpisodes(DubStatus.Subbed, listOf(placeholder))
             }
         } catch (_: Throwable) {
             null
