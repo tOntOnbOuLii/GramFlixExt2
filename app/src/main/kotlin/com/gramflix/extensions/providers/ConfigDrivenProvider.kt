@@ -1,5 +1,6 @@
 ﻿package com.gramflix.extensions.providers
 
+import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
@@ -12,8 +13,11 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.addEpisodes
+import com.lagradost.cloudstream3.addSeasonNames
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
@@ -1845,34 +1849,32 @@ class ConfigDrivenProvider(
         val regex = Regex("""panneauAnime\("([^"]+)",\s*"([^"]+)""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         val panels = mutableListOf<Pair<String, String>>()
         val seen = hashSetOf<String>()
-        doc.select("script").forEach { script ->
-            val data = script.data()
-            regex.findAll(data).forEach { match ->
-                val name = match.groupValues.getOrNull(1)?.trim().orEmpty()
-                val rawUrl = match.groupValues.getOrNull(2)?.trim().orEmpty()
-                if (name.isBlank() || rawUrl.isBlank()) return@forEach
-                val variants = linkedSetOf(rawUrl)
-                fun addVariant(from: String, to: String) {
-                    if (rawUrl.contains(from, ignoreCase = true)) {
-                        variants += rawUrl.replace(from, to, ignoreCase = true)
-                    }
+        val html = doc.outerHtml()
+        regex.findAll(html).forEach { match ->
+            val name = match.groupValues.getOrNull(1)?.trim().orEmpty()
+            val rawUrl = match.groupValues.getOrNull(2)?.trim().orEmpty()
+            if (name.isBlank() || rawUrl.isBlank()) return@forEach
+            val variants = linkedSetOf(rawUrl)
+            fun addVariant(from: String, to: String) {
+                if (rawUrl.contains(from, ignoreCase = true)) {
+                    variants += rawUrl.replace(from, to, ignoreCase = true)
                 }
-                addVariant("/vostfr/", "/vf/")
-                addVariant("/vostfr/", "/vo/")
-                addVariant("/vf/", "/vostfr/")
-                addVariant("/vf/", "/vo/")
-                addVariant("/vo/", "/vostfr/")
-                variants.forEach { variant ->
-                    val resolved = resolveAgainst(baseUrl, variant) ?: variant
-                    if (seen.add(resolved)) {
-                        val suffix = when {
-                            variant.contains("/vf/", ignoreCase = true) -> " VF"
-                            variant.contains("/vo/", ignoreCase = true) -> " VO"
-                            variant.contains("/vostfr/", ignoreCase = true) -> " VOSTFR"
-                            else -> ""
-                        }
-                        panels += name + suffix to resolved
+            }
+            addVariant("/vostfr/", "/vf/")
+            addVariant("/vostfr/", "/vo/")
+            addVariant("/vf/", "/vostfr/")
+            addVariant("/vf/", "/vo/")
+            addVariant("/vo/", "/vostfr/")
+            variants.forEach { variant ->
+                val resolved = resolveAgainst(baseUrl, variant) ?: variant
+                if (seen.add(resolved)) {
+                    val suffix = when {
+                        variant.contains("/vf/", ignoreCase = true) -> " VF"
+                        variant.contains("/vo/", ignoreCase = true) -> " VO"
+                        variant.contains("/vostfr/", ignoreCase = true) -> " VOSTFR"
+                        else -> ""
                     }
+                    panels += name + suffix to resolved
                 }
             }
         }
@@ -1895,6 +1897,33 @@ class ConfigDrivenProvider(
             }
         }
         return panels
+    }
+
+    private suspend fun fetchAnimeSamaSources(streamPage: String): Map<String, List<String>> {
+        val request = runCatching { app.get(streamPage) }.getOrNull() ?: return emptyMap()
+        if (!request.isSuccessful) return emptyMap()
+        val doc = request.document
+        val scriptContainer = doc.selectFirst("#sousBlocMiddle script")?.toString() ?: ""
+        val episodeKeyRegex = Regex("""<script[^>]*src=['"]([^'"]*episodes\.js\?filever=\d+)['"][^>]*>""")
+        val episodeKey = episodeKeyRegex.find(scriptContainer)?.groupValues?.getOrNull(1) ?: return emptyMap()
+        val episodesUrl = resolveAgainst(streamPage, episodeKey) ?: "${streamPage.trimEnd('/')}/$episodeKey"
+        val js = runCatching { app.get(episodesUrl, referer = streamPage).text }
+            .recoverCatching { app.get(episodesUrl).text }
+            .getOrNull()
+            ?: return emptyMap()
+        val urlRegex = Regex("""['"]https?://[^\s'"]+['"]""")
+        val urls = urlRegex.findAll(js).map { it.value.trim('\'', '"') }.toList()
+        if (urls.isEmpty()) return emptyMap()
+        return urls.groupBy { url ->
+            when {
+                url.contains("sibnet.ru") -> "Sibnet"
+                url.contains("vidmoly.to") -> "Vidmoly"
+                url.contains("oneupload.to") -> "OneUpload"
+                url.contains("sendvid.com") -> "Sendvid"
+                url.contains("vk.com") -> "Vk"
+                else -> "Other"
+            }
+        }
     }
 
     private suspend fun fetchAnimeSamaHome(meta: ProviderMeta): List<HomePageList> {
@@ -3691,54 +3720,59 @@ class ConfigDrivenProvider(
                 ?: name
             val poster = extractPosterFromDoc(doc, pageLocation)
             if (meta != null && isAnimeSama(meta)) {
-                val arrays = runCatching { fetchAnimeSamaArrays(pageLocation, doc) }.getOrNull()
-                var animeEpisodes = arrays?.let { buildAnimeSamaEpisodes(meta, pageLocation, it, title, poster ?: posterHint) }
-                if (animeEpisodes.isNullOrEmpty()) {
-                    val panels = parseAnimeSamaPanels(doc, pageLocation)
-                    if (panels.isNotEmpty()) {
-                        val collected = mutableListOf<Episode>()
-                        var seasonCounter = 1
-                        for ((panelName, panelUrl) in panels) {
-                            val panelArrays = runCatching { fetchAnimeSamaArrays(panelUrl) }.getOrNull()
-                                ?: runCatching { fetchAnimeSamaArrays(panelUrl, null) }.getOrNull()
-                                ?: continue
-                            val eps = buildAnimeSamaEpisodes(meta, panelUrl, panelArrays, title, poster ?: posterHint)
-                            if (eps.isEmpty()) continue
-                            eps.forEach { ep ->
-                                ep.season = seasonCounter
-                                val baseName = ep.name?.takeIf { it.isNotBlank() } ?: "Episode ${ep.episode ?: 0}"
-                                ep.name = "$panelName - $baseName"
-                            }
-                            collected += eps
-                            seasonCounter++
+                val panels = parseAnimeSamaPanels(doc, pageLocation)
+                val seasonList = mutableListOf<com.lagradost.cloudstream3.SeasonData>()
+                var seasonIndex = 1
+                panels.forEach { (name, _) ->
+                    seasonList += com.lagradost.cloudstream3.SeasonData(seasonIndex, name)
+                    seasonIndex++
+                }
+                val subbedEpisodes = mutableListOf<Episode>()
+                val dubbedEpisodes = mutableListOf<Episode>()
+                seasonIndex = 1
+                panels.forEach { (panelName, panelUrl) ->
+                    val vostfrSources = fetchAnimeSamaSources(panelUrl)
+                    val vfUrl = panelUrl.replace("/vostfr/", "/vf/").replace("/vo/", "/vf/")
+                    val vfSources = fetchAnimeSamaSources(vfUrl)
+                    val maxCount = listOf(
+                        vostfrSources.values.maxOfOrNull { it.size } ?: 0,
+                        vfSources.values.maxOfOrNull { it.size } ?: 0
+                    ).maxOrNull() ?: 0
+                    for (i in 0 until maxCount) {
+                        val baseName = when {
+                            panelName.contains("Film", ignoreCase = true) -> "$panelName"
+                            else -> "$panelName - Episode ${i + 1}"
                         }
-                        if (collected.isNotEmpty()) {
-                            animeEpisodes = collected
+                        val subLinks = vostfrSources.values.flatMap { list -> list.getOrNull(i)?.let { listOf(it) } ?: emptyList() }
+                        if (subLinks.isNotEmpty()) {
+                            val data = subLinks.joinToString(" ")
+                            subbedEpisodes += newEpisode(data) {
+                                name = baseName
+                                episode = i + 1
+                                season = seasonIndex
+                                posterUrl = poster ?: posterHint
+                            }
+                        }
+                        val dubLinks = vfSources.values.flatMap { list -> list.getOrNull(i)?.let { listOf(it) } ?: emptyList() }
+                        if (dubLinks.isNotEmpty()) {
+                            val data = dubLinks.joinToString(" ")
+                            dubbedEpisodes += newEpisode(data) {
+                                name = baseName
+                                episode = i + 1
+                                season = seasonIndex
+                                posterUrl = poster ?: posterHint
+                            }
                         }
                     }
+                    seasonIndex++
                 }
-                if (animeEpisodes.isNullOrEmpty()) {
-                    // Fallback: expose at least one episode so Cloudstream keeps the item as a series
-                    val dataPayload = encodeLoadData(
-                        url = pageLocation,
-                        slug = meta.slug,
-                        title = title,
-                        poster = poster ?: posterHint,
-                        episode = 0
-                    )
-                    animeEpisodes = listOf(
-                        newEpisode(dataPayload) {
-                            name = "Episode 1"
-                            season = 1
-                            episode = 1
-                            posterUrl = poster ?: posterHint
-                        }
-                    )
-                }
-                if (!animeEpisodes.isNullOrEmpty()) {
-                    return newTvSeriesLoadResponse(title, pageLocation, TvType.Anime, animeEpisodes) {
-                        description?.let { plot = it }
-                        (posterHint ?: poster)?.let { posterUrl = it }
+                if (subbedEpisodes.isNotEmpty() || dubbedEpisodes.isNotEmpty()) {
+                    return newAnimeLoadResponse(title, pageLocation, TvType.Anime) {
+                        plot = description
+                        posterUrl = poster ?: posterHint
+                        addSeasonNames(seasonList)
+                        if (subbedEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subbedEpisodes)
+                        if (dubbedEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubbedEpisodes)
                     }
                 }
             }
@@ -3776,6 +3810,14 @@ class ConfigDrivenProvider(
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        // Fast-path for AnimeSama concatenated links
+        val parts = data.split(' ').filter { it.startsWith("http", ignoreCase = true) }
+        if (parts.isNotEmpty()) {
+            parts.forEach { link ->
+                runCatching { loadExtractor(link, null, subtitleCallback, callback) }
+            }
+            return parts.isNotEmpty()
+        }
         return try {
             HostersConfig.ensureLoaded()
             val hosterPatterns = buildHosterPatterns()
