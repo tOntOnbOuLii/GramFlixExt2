@@ -409,7 +409,7 @@ class ConfigDrivenProvider(
         val raw = slug?.trim() ?: return slug
         val lowered = raw.lowercase(Locale.ROOT)
         return when (lowered) {
-            "papadustream", "papadustream" -> PAPADU_SLUG
+            "papadustream", "papadustreamgf", "papadustreamgf" -> PAPADU_SLUG
             else -> raw
         }
     }
@@ -3060,6 +3060,9 @@ class ConfigDrivenProvider(
         if (meta?.slug?.contains("anime", ignoreCase = true) == true) {
             return TvType.Anime
         }
+        if (isPapadu(meta)) {
+            return TvType.TvSeries
+        }
         if (element != null) {
             val classes = element.classNames().map { it.lowercase(Locale.ROOT) }
             if (classes.any { it.contains("tvshows") || it.contains("tvshow") || it.contains("season") || it.contains("episode") }) {
@@ -3989,7 +3992,13 @@ class ConfigDrivenProvider(
                 val fs = runCatching { loadFrenchStream(meta, pageLocation) }.getOrNull()
                 if (fs != null) return fs
             }
-            val episodes = parseTvEpisodes(meta, doc, pageLocation)
+            val episodes = when {
+                meta != null && isPapadu(meta) -> {
+                    val parsed = parsePapaduEpisodes(doc, meta, pageLocation)
+                    if (parsed.isNotEmpty()) parsed else parseTvEpisodes(meta, doc, pageLocation)
+                }
+                else -> parseTvEpisodes(meta, doc, pageLocation)
+            }
             if (episodes.isNotEmpty()) {
                 val seriesType = when (determineTvType(meta, pageUrl, null)) {
                     TvType.Anime -> TvType.Anime
@@ -4619,9 +4628,6 @@ class ConfigDrivenProvider(
         }
     }
 }
-
-
-
 
 
 
