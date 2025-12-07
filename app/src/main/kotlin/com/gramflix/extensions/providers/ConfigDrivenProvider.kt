@@ -1874,11 +1874,12 @@ class ConfigDrivenProvider(
 
             var asSources: Map<String, List<String>> = mapOf()
             val asSourcesVF: Map<String, List<String>>
+            var vfPage: String? = null
 
             if (urlTransforme.isNotEmpty() && urlTransforme[urlTransforme.size - 1].lowercase(Locale.ROOT) != "vf") {
                 asSources = retrieveAnimeSamaSources(streamPage)
                 urlTransforme[urlTransforme.size - 1] = "vf"
-                val vfPage = urlTransforme.joinToString("/")
+                vfPage = urlTransforme.joinToString("/")
                 asSourcesVF = retrieveAnimeSamaSources(vfPage)
             } else {
                 asSourcesVF = retrieveAnimeSamaSources(streamPage)
@@ -1901,7 +1902,8 @@ class ConfigDrivenProvider(
                     if (i < link.size) datas += " " + link[i]
                 }
                 if (datas.isNotBlank()) {
-                    episodeList += newEpisode(datas.trim()) {
+                    val payload = "${streamPage}||${datas.trim()}"
+                    episodeList += newEpisode(payload) {
                         name = nom
                         episode = i + 1
                         posterUrl = image
@@ -1914,7 +1916,9 @@ class ConfigDrivenProvider(
                     if (i < link.size) datas += " " + link[i]
                 }
                 if (datas.isNotBlank()) {
-                    vfEpisodeList += newEpisode(datas.trim()) {
+                    val ref = vfPage ?: streamPage
+                    val payload = "${ref}||${datas.trim()}"
+                    vfEpisodeList += newEpisode(payload) {
                         name = nom
                         episode = i + 1
                         posterUrl = image
@@ -3723,11 +3727,14 @@ class ConfigDrivenProvider(
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // Fast-path for AnimeSama concatenated links
-        val parts = data.split(' ').filter { it.startsWith("http", ignoreCase = true) }
+        // Fast-path for AnimeSama concatenated links (optionally with referer prefix "referer||links")
+        val (maybeRef, linksStr) = data.split("||", limit = 2).let {
+            if (it.size == 2) it[0] to it[1] else null to data
+        }
+        val parts = linksStr.split(' ').filter { it.startsWith("http", ignoreCase = true) }
         if (parts.isNotEmpty()) {
             parts.forEach { link ->
-                runCatching { loadExtractor(link, null, subtitleCallback, callback) }
+                runCatching { loadExtractor(link, maybeRef, subtitleCallback, callback) }
             }
             return parts.isNotEmpty()
         }
