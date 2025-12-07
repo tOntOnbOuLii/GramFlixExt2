@@ -1849,16 +1849,27 @@ class ConfigDrivenProvider(
                 val name = match.groupValues.getOrNull(1)?.trim().orEmpty()
                 val rawUrl = match.groupValues.getOrNull(2)?.trim().orEmpty()
                 if (name.isBlank() || rawUrl.isBlank()) return@forEach
-                val resolved = resolveAgainst(baseUrl, rawUrl) ?: rawUrl
-                if (seen.add(resolved)) {
-                    panels += name to resolved
+                val variants = linkedSetOf(rawUrl)
+                fun addVariant(from: String, to: String) {
+                    if (rawUrl.contains(from, ignoreCase = true)) {
+                        variants += rawUrl.replace(from, to, ignoreCase = true)
+                    }
                 }
-                // Also try to expose VF mirror when only VOSTFR link is provided.
-                if (rawUrl.contains("/vostfr/", ignoreCase = true)) {
-                    val vfUrl = rawUrl.replace("/vostfr/", "/vf/", ignoreCase = true)
-                    val vfResolved = resolveAgainst(baseUrl, vfUrl) ?: vfUrl
-                    if (seen.add(vfResolved)) {
-                        panels += "$name VF" to vfResolved
+                addVariant("/vostfr/", "/vf/")
+                addVariant("/vostfr/", "/vo/")
+                addVariant("/vf/", "/vostfr/")
+                addVariant("/vf/", "/vo/")
+                addVariant("/vo/", "/vostfr/")
+                variants.forEach { variant ->
+                    val resolved = resolveAgainst(baseUrl, variant) ?: variant
+                    if (seen.add(resolved)) {
+                        val suffix = when {
+                            variant.contains("/vf/", ignoreCase = true) -> " VF"
+                            variant.contains("/vo/", ignoreCase = true) -> " VO"
+                            variant.contains("/vostfr/", ignoreCase = true) -> " VOSTFR"
+                            else -> ""
+                        }
+                        panels += name + suffix to resolved
                     }
                 }
             }
