@@ -2,7 +2,7 @@
     {
         "name":  "GramFlix Stream",
         "internalName":  "GramflixExtensions",
-        "version":  101,
+        "version":  102,
         "apiVersion":  1,
         "status":  1,
         "url":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/gramflix-all.cs3",
@@ -19,7 +19,7 @@
         "description":  "Pack regroupant les providers pour GramFlix",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
-        "fileSize":  167339
+        "fileSize":  167674
     },
     {
         "name":  "1JOUR1FILMGF",
@@ -46,7 +46,7 @@
     {
         "name":  "AnimeSamaGF",
         "internalName":  "animesamagf",
-        "version":  101,
+        "version":  102,
         "apiVersion":  1,
         "status":  1,
         "url":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/animesamagf.cs3",
@@ -63,7 +63,7 @@
         "description":  "Provider AnimeSama standalone",
         "repositoryUrl":  "https://github.com/tOntOnbOuLii/GramFlixExt2",
         "iconUrl":  "https://raw.githubusercontent.com/tOntOnbOuLii/GramFlixExt2/main/logo_gf.png",
-        "fileSize":  167332
+        "fileSize":  167669
     },
     {
         "name":  "CinePlateformeGF",

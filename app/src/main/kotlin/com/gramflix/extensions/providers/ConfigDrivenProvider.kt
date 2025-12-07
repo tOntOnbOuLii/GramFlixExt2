@@ -1831,7 +1831,7 @@ class ConfigDrivenProvider(
         val dedupe = hashSetOf<String>()
         var success = false
         arrays.toSortedMap().values.forEach { list ->
-            val link = list.getOrNull(episodeIndex) ?: return@forEach
+            val link = list.getOrNull(episodeIndex) ?: list.getOrNull(0) ?: return@forEach
             if (!dedupe.add(link)) return@forEach
             runCatching {
                 loadExtractor(link, pageUrl, subtitleCallback, callback)
@@ -1873,6 +1873,24 @@ class ConfigDrivenProvider(
                         }
                         panels += name + suffix to resolved
                     }
+                }
+            }
+        }
+        if (panels.isEmpty()) {
+            // Fallback panels (common patterns when scripts are missing)
+            val normalizedBase = baseUrl.trim().trimEnd('/') + "/"
+            val defaults = listOf(
+                "Saison 1 VOSTFR" to "saison1/vostfr/",
+                "Saison 1 VF" to "saison1/vf/",
+                "Saison 1 VO" to "saison1/vo/",
+                "Film VOSTFR" to "film/vostfr/",
+                "Film VF" to "film/vf/",
+                "Film VO" to "film/vo/"
+            )
+            defaults.forEach { (name, path) ->
+                val resolved = resolveAgainst(normalizedBase, path) ?: (normalizedBase + path)
+                if (seen.add(resolved)) {
+                    panels += name to resolved
                 }
             }
         }
