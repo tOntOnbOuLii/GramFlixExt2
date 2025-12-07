@@ -49,7 +49,9 @@ import java.text.Normalizer
 import java.util.ArrayList
 import java.util.Base64
 import java.util.LinkedHashMap
+import java.util.EnumSet
 import java.util.Locale
+import java.util.regex.Pattern
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -1768,11 +1770,11 @@ class ConfigDrivenProvider(
 
     private suspend fun fetchAnimeSamaHome(meta: ProviderMeta): List<HomePageList> {
         val doc = app.get(meta.baseUrl, cacheTime = 60).document
-        val sections = listOf(
-            "Derniers épisodes ajoutés" to "#containerAjoutsAnimes a",
+                val sections = listOf(
+            "Derniers episodes ajoutes" to "#containerAjoutsAnimes a",
             "Derniers contenus sortis" to "#containerSorties a",
             "Les classiques" to "#containerClassiques a",
-            "Découvrez des pépites" to "#containerPepites a"
+            "Decouvrez des pepites" to "#containerPepites a"
         )
         val homeLists = mutableListOf<HomePageList>()
         sections.forEach { (name, selector) ->
@@ -1946,6 +1948,262 @@ class ConfigDrivenProvider(
             addEpisodes(DubStatus.Subbed, episodeList)
             if (vfEpisodeList.isNotEmpty()) addEpisodes(DubStatus.Dubbed, vfEpisodeList)
         }
+    }
+
+    private data class FrenchStreamConfig(val mainUrl: String, val animeUrl: String)
+
+    private fun isFrenchStream(meta: ProviderMeta?): Boolean =
+        meta?.slug.equals("FrenchStream", ignoreCase = true)
+
+    private fun isFrenchStreamUrl(url: String?): Boolean {
+        val host = normalizeHost(url ?: return false) ?: return false
+        return host.contains("french-stream", ignoreCase = true) || host.contains("french-manga", ignoreCase = true)
+    }
+
+    private fun buildFrenchStreamConfig(meta: ProviderMeta): FrenchStreamConfig {
+        val base = meta.baseUrl.trim().trimEnd('/')
+        val candidate = base.replace("french-stream", "french-manga", ignoreCase = true)
+        val anime = if (candidate != base) candidate else "https://w14.french-manga.net"
+        return FrenchStreamConfig(base, anime)
+    }
+
+    private fun frenchStreamSections(): List<Triple<String, String, Boolean>> = listOf(
+        Triple("films", "Derniers Films", false),
+        Triple("s-tv", "Dernières Séries", false),
+        Triple("manga-streaming-1", "Derniers Animes", true),
+        Triple("films/top-film", "Box Office Film", false),
+        Triple("sries-du-moment", "Box Office Série", false),
+        Triple("coups-de-cur", "Coups de Cœur - Anime", true),
+        Triple("netflix-series-", "Nouveautés NETFLIX", false),
+        Triple("series-apple-tv", "Nouveautés Apple TV+", false),
+        Triple("series-disney-plus", "Nouveautés Disney+", false),
+        Triple("serie-amazon-prime-videos", "Nouveautés Prime Video", false)
+    )
+
+    private fun frenchStreamToResult(
+        post: Element,
+        cfg: FrenchStreamConfig,
+        isAnime: Boolean
+    ): SearchResponse? {
+        val title = post.selectFirst(".short-title")?.text().orEmpty()
+        if (title.isBlank()) return null
+        var url = post.selectFirst(".short-poster.img-box.with-mask")?.attr("href").orEmpty()
+        if (url.startsWith("/")) url = cfg.mainUrl + url
+        var thumb = post.selectFirst("img")?.attr("src").orEmpty()
+        if (thumb.isBlank() || thumb.startsWith("data:")) {
+            thumb = post.selectFirst("img")?.attr("data-src").orEmpty()
+        }
+        val vfStatus = (post.selectFirst(".film-version") ?: post.selectFirst(".film-verz"))?.text().orEmpty()
+        val epiNum = post.selectFirst(".mli-eps")?.ownText()
+            ?.removeSurrounding("\"")?.trim()?.toIntOrNull()
+            ?: post.selectFirst(".mli-eps i")?.text()?.toIntOrNull() ?: 0
+        val tvType = when {
+            isAnime -> TvType.Anime
+            epiNum > 0 -> TvType.TvSeries
+            else -> TvType.Movie
+        }
+        val response = when (tvType) {
+            TvType.Movie -> newMovieSearchResponse(title, url, TvType.Movie)
+            TvType.TvSeries, TvType.Anime -> newTvSeriesSearchResponse(title, url, tvType)
+            else -> newTvSeriesSearchResponse(title, url, TvType.TvSeries)
+        }
+        if (thumb.isNotBlank()) response.posterUrl = thumb
+        return response
+    }
+
+    private suspend fun fetchFrenchStreamHome(meta: ProviderMeta, page: Int): List<HomePageList> {
+        val cfg = buildFrenchStreamConfig(meta)
+        val lists = mutableListOf<HomePageList>()
+        frenchStreamSections().forEach { (path, label, isAnime) ->
+            val url = if (isAnime) {
+                "${cfg.animeUrl}/index.php?cstart=$page&do=cat&category=$path"
+            } else {
+                "${cfg.mainUrl}/$path/page/$page"
+            }
+            val doc = app.get(url).document
+            val items = doc.select(".short").mapNotNull { frenchStreamToResult(it, cfg, isAnime) }
+            if (items.isNotEmpty()) {
+                lists += HomePageList(label, items, isHorizontalImages = false)
+            }
+        }
+        return lists
+    }
+
+    private suspend fun searchFrenchStream(meta: ProviderMeta, query: String): List<SearchItem> {
+        val cfg = buildFrenchStreamConfig(meta)
+        suspend fun fetch(url: String) = app.get("$url/index.php?story=$query&do=search&subaction=search").document.select(".short")
+        val items = fetch(cfg.mainUrl) + fetch(cfg.animeUrl)
+        return items.mapNotNull { frenchStreamToResult(it, cfg, it.baseUri().contains("french-manga", ignoreCase = true)) }
+            .map { SearchItem(it, computeMatchScore(it.name, query)) }
+    }
+
+    private suspend fun loadReqFrenchStream(url: String) =
+        app.post(
+            url = url,
+            headers = mapOf("content-type" to "application/x-www-form-urlencoded"),
+            data = mapOf("skin_name" to "VFV2", "action_skin_change" to "yes")
+        )
+
+    private suspend fun loadFrenchStream(meta: ProviderMeta, pageUrl: String): LoadResponse? {
+        val cfg = buildFrenchStreamConfig(meta)
+        var req = loadReqFrenchStream(pageUrl)
+        var attempts = 0
+        while (!req.isSuccessful && attempts < 3) {
+            req = loadReqFrenchStream(pageUrl)
+            attempts++
+        }
+        if (!req.isSuccessful) return null
+        val doc = req.document
+        val title = doc.selectFirst("#s-title")?.ownText()?.removeSurrounding("\"")?.trim().orEmpty()
+        if (title.isBlank()) return null
+        val contentType = when {
+            pageUrl.contains("/films/", ignoreCase = true) -> TvType.Movie
+            pageUrl.contains("french-manga", ignoreCase = true) || pageUrl.contains(cfg.animeUrl, ignoreCase = true) -> TvType.Anime
+            else -> TvType.TvSeries
+        }
+        val synopsis = if (contentType == TvType.TvSeries) doc.selectFirst(".fdesc")?.text()
+        else doc.selectFirst("#s-desc")?.ownText()
+        val infoContainer = doc.selectFirst("div.facts")
+        val releaseYear = infoContainer?.selectFirst("span.release")?.text()?.substringBefore("-")?.trim()
+        val genres = (infoContainer?.selectFirst("span.genres")?.text()
+            ?: doc.selectFirst("#s-list")?.ownText())
+            ?.trim()
+            ?.split(if (contentType == TvType.Anime) '-' else ',')
+            ?.map { it.trim() }
+        val duration = infoContainer?.selectFirst("span.runtime")?.text()?.trim()?.substringBefore(" ")
+        val posterRegex = Regex("""url\((https?://\S+)\)""")
+        val image = posterRegex.find(doc.toString())?.groupValues?.getOrNull(1)
+            ?: doc.selectFirst(".fposter img")?.attr("src").orEmpty()
+
+        if (contentType == TvType.Anime) {
+            val episodes = mutableListOf<Episode>()
+            val versionContainers = doc.select(".elink")
+            versionContainers.forEachIndexed { i, versionContainer ->
+                versionContainer.select("a").forEachIndexed { j, it ->
+                    val dataRel = it.attr("data-rel")
+                    if (dataRel.isNotEmpty()) {
+                        val data = doc.selectFirst("#$dataRel")?.toString().orEmpty()
+                        episodes += newEpisode(data) {
+                            posterUrl = image
+                            episode = j + 1
+                            season = i + 1
+                        }
+                    }
+                }
+            }
+            if (episodes.isNotEmpty()) {
+                return newTvSeriesLoadResponse(title, pageUrl, TvType.Anime, episodes) {
+                    posterUrl = image
+                    plot = synopsis
+                    tags = genres
+                    addSeasonNames(listOf("VF", "VOSTFR"))
+                }
+            }
+        }
+
+        if (contentType == TvType.TvSeries) {
+            val vfEpisodes = mutableListOf<Episode>()
+            val voEpisodes = mutableListOf<Episode>()
+            val episodeLists = doc.select("script[type=\"text/template\"]").map { Jsoup.parse(it.data()) }
+            episodeLists.forEachIndexed { sourceIndex, episodeList ->
+                val episodeContainers = episodeList.select(".episode-container")
+                episodeContainers.forEachIndexed { epiIndex, episodeContainer ->
+                    val epiTitle = episodeContainer.selectFirst(".episode-title")?.text()?.substringAfter(":").orEmpty()
+                    val epiImage = episodeContainer.selectFirst(".episode-image")?.attr("src").orEmpty().ifBlank { image }
+                    val epiSynopsis = episodeContainer.selectFirst(".episode-synopsis")?.text().orEmpty()
+                    val epiVF = episodeContainer.selectFirst("[data-episode*=\"-vf\"]")?.attr("data-url").orEmpty()
+                    val epiVO = episodeContainer.selectFirst("[data-episode*=\"-vo\"]")?.attr("data-url").orEmpty()
+                    if (sourceIndex == 0) {
+                        vfEpisodes += newEpisode(epiVF) {
+                            name = epiTitle
+                            posterUrl = epiImage
+                            episode = epiIndex + 1
+                            season = 1
+                            description = epiSynopsis
+                        }
+                        voEpisodes += newEpisode(epiVO) {
+                            name = epiTitle
+                            posterUrl = epiImage
+                            episode = epiIndex + 1
+                            season = 2
+                            description = epiSynopsis
+                        }
+                    } else {
+                        if (epiVF.isNotEmpty() && epiIndex < vfEpisodes.size) vfEpisodes[epiIndex].data += " $epiVF"
+                        if (epiVO.isNotEmpty() && epiIndex < voEpisodes.size) voEpisodes[epiIndex].data += " $epiVO"
+                    }
+                }
+            }
+            val episodes = (vfEpisodes + voEpisodes).filter { it.data.isNotBlank() }
+            if (episodes.isNotEmpty()) {
+                return newTvSeriesLoadResponse(title, pageUrl, TvType.TvSeries, episodes) {
+                    posterUrl = image
+                    plot = synopsis
+                    tags = genres
+                    this.duration = duration?.toIntOrNull()
+                    this.year = releaseYear?.toIntOrNull()
+                    addSeasonNames(listOf("VF", "VOSTFR"))
+                }
+            }
+        }
+
+        // Movie path: treat each version as a season with single episode
+        val regex = Pattern.compile("""playerUrls\s*=\s*(\{.*?\});""", Pattern.DOTALL)
+        val matcher = regex.matcher(doc.toString())
+        val movieJson = if (matcher.find()) JSONObject(matcher.group(1) ?: "") else JSONObject()
+        val sortedMJ = mutableMapOf<String, MutableList<String>>()
+        for (key in movieJson.keys()) {
+            val source = movieJson.getJSONObject(key)
+            for (type in source.keys()) {
+                val u = source.getString(type)
+                if (u.isNotEmpty() && u != "https://1.multiup.us/player/embed_player.php?vid=&autoplay=no") {
+                    sortedMJ.getOrPut(type) { mutableListOf() }.add(u)
+                }
+            }
+        }
+        val movieEpisodes = mutableListOf<Episode>()
+        val versionNames = mutableListOf<String>()
+        var idx = 0
+        for ((version, links) in sortedMJ) {
+            idx++
+            versionNames += version
+            movieEpisodes += newEpisode(links.joinToString(" ")) {
+                name = "$title [$version]"
+                posterUrl = image
+                season = idx
+                episode = 1
+            }
+        }
+        if (movieEpisodes.isNotEmpty()) {
+            return newTvSeriesLoadResponse(title, pageUrl, TvType.TvSeries, movieEpisodes) {
+                posterUrl = image
+                plot = synopsis
+                tags = genres
+                this.duration = duration?.toIntOrNull()
+                this.year = releaseYear?.toIntOrNull()
+                addSeasonNames(versionNames)
+            }
+        }
+        return null
+    }
+
+    private fun frenchStreamExtractVid(vidUrl: String): String = vidUrl
+
+    private suspend fun loadFrenchStreamLinks(
+        data: String,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val urls = when {
+            data.startsWith("[") -> data.removeSurrounding("[", "]").split(", ").map { it.trim() }
+            data.contains("class=\"fstab\"") -> Jsoup.parse(data).select(".fsctab").map { it.attr("href") }
+            else -> data.split(" ")
+        }
+        urls.filter { it.isNotBlank() }.forEach { link ->
+            val resolved = frenchStreamExtractVid(link)
+            runCatching { loadExtractor(resolved, subtitleCallback, callback) }
+        }
+        return urls.isNotEmpty()
     }
     private suspend fun searchAnimeSama(meta: ProviderMeta, query: String): List<SearchItem> {
         val searchUrl = "${meta.baseUrl.trimEnd('/')}/template-php/defaut/fetch.php"
@@ -3349,6 +3607,10 @@ class ConfigDrivenProvider(
                 results += searchAnimeSama(meta, query)
                 continue
             }
+            if (isFrenchStream(meta)) {
+                results += searchFrenchStream(meta, query)
+                continue
+            }
             if (isCoflix(meta)) {
                 results += searchCoflix(meta, query)
                 continue
@@ -3416,6 +3678,13 @@ class ConfigDrivenProvider(
                 val animeLists = runCatching { fetchAnimeSamaHome(meta) }.getOrElse { emptyList() }
                 if (animeLists.isNotEmpty()) {
                     lists.addAll(animeLists)
+                    handled = true
+                }
+            }
+            if (isFrenchStream(meta) && (page == 1 || requestedSlug != null)) {
+                val fsLists = runCatching { fetchFrenchStreamHome(meta, page) }.getOrElse { emptyList() }
+                if (fsLists.isNotEmpty()) {
+                    lists.addAll(fsLists)
                     handled = true
                 }
             }
@@ -3694,6 +3963,10 @@ class ConfigDrivenProvider(
                 val anime = runCatching { loadAnimeSama(meta, pageLocation) }.getOrNull()
                 if (anime != null) return anime
             }
+            if (meta != null && isFrenchStream(meta)) {
+                val fs = runCatching { loadFrenchStream(meta, pageLocation) }.getOrNull()
+                if (fs != null) return fs
+            }
             val episodes = parseTvEpisodes(meta, doc, pageLocation)
             if (episodes.isNotEmpty()) {
                 val seriesType = when (determineTvType(meta, pageUrl, null)) {
@@ -3762,6 +4035,10 @@ class ConfigDrivenProvider(
                     runCatching { loadExtractor(link, pageUrl, subtitleCallback, hosterAwareCallback) }
                     return true
                 }
+            }
+            if (loadData.slug.equals("FrenchStream", ignoreCase = true) || isFrenchStreamUrl(pageUrl)) {
+                val ok = loadFrenchStreamLinks(pageUrl.ifBlank { data }, subtitleCallback, hosterAwareCallback)
+                if (ok) return true
             }
             val nebryxEntry = parseNebryxUrl(pageUrl)
             if (nebryxEntry != null || isNebryxSlug(loadData.slug)) {
@@ -4183,6 +4460,8 @@ class ConfigDrivenProvider(
         }
     }
 }
+
+
 
 
 
