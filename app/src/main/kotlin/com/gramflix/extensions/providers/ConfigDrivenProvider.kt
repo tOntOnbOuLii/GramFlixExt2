@@ -1765,7 +1765,9 @@ class ConfigDrivenProvider(
         val script = document.selectFirst("script[src*=\"episodes.js\"]") ?: return null
         val rawSrc = script.attr("src").takeIf { it.isNotBlank() } ?: return null
         val scriptUrl = script.absUrl("src").takeIf { it.isNotBlank() } ?: resolveAgainst(pageUrl, rawSrc) ?: rawSrc
-        val js = runCatching { app.get(scriptUrl, referer = pageUrl).text }.getOrNull() ?: return null
+        val js = runCatching { app.get(scriptUrl, referer = pageUrl).text }
+            .recoverCatching { app.get(scriptUrl, referer = null).text }
+            .getOrNull() ?: return null
         val arrays = mutableMapOf<Int, List<String>>()
         val regex = Regex("""var\s+(eps\d+)\s*=\s*\[(.*?)];""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE))
         regex.findAll(js).forEach { match ->
@@ -3679,7 +3681,9 @@ class ConfigDrivenProvider(
                         val collected = mutableListOf<Episode>()
                         var seasonCounter = 1
                         for ((panelName, panelUrl) in panels) {
-                            val panelArrays = runCatching { fetchAnimeSamaArrays(panelUrl) }.getOrNull() ?: continue
+                            val panelArrays = runCatching { fetchAnimeSamaArrays(panelUrl) }.getOrNull()
+                                ?: runCatching { fetchAnimeSamaArrays(panelUrl, null) }.getOrNull()
+                                ?: continue
                             val eps = buildAnimeSamaEpisodes(meta, panelUrl, panelArrays, title, poster ?: posterHint)
                             if (eps.isEmpty()) continue
                             eps.forEach { ep ->
