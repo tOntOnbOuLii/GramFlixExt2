@@ -221,6 +221,7 @@ class ConfigDrivenProvider(
         private const val HOME_CACHE_MAX_ENTRIES = 32
         private const val TMDB_API_KEY = "660883a8a688af69b7e1d834f864e006"
         private const val TMDB_CACHE_TTL_MS = 10 * 60 * 1000L
+        private const val PAPADU_SLUG = "PapaduStream"
 
         private fun logNebryx(message: String) {
             println("[Nebryx] $message")
@@ -404,12 +405,22 @@ class ConfigDrivenProvider(
 
     private fun canonicalizeUrl(url: String): String = url.trim().trimEnd('/')
 
+    private fun canonicalSlug(slug: String?): String? {
+        val raw = slug?.trim() ?: return slug
+        val lowered = raw.lowercase(Locale.ROOT)
+        return when (lowered) {
+            "papadustream", "papadustream" -> PAPADU_SLUG
+            else -> raw
+        }
+    }
+
     private fun rememberSlugForUrl(url: String, slug: String) {
         val normalized = canonicalizeUrl(url)
+        val canonicalSlug = canonicalSlug(slug) ?: slug
         synchronized(urlSlugLock) {
-            urlSlugCache[normalized] = slug
+            urlSlugCache[normalized] = canonicalSlug
             if (normalized != url) {
-                urlSlugCache[url] = slug
+                urlSlugCache[url] = canonicalSlug
             }
         }
     }
@@ -1408,9 +1419,10 @@ class ConfigDrivenProvider(
         if (providers != null) {
             val iterator = providers.keys()
             while (iterator.hasNext()) {
-                val slug = iterator.next()
+                val rawSlug = iterator.next()
+                val slug = canonicalSlug(rawSlug) ?: rawSlug
                 if (!isSlugAllowed(slug)) continue
-                val info = providers.optJSONObject(slug) ?: continue
+                val info = providers.optJSONObject(rawSlug) ?: continue
                 val baseUrl = info.optString("baseUrl").takeIf { it.isNotBlank() } ?: continue
                 val displayName = ensureGFSuffix(info.optString("name").takeIf { it.isNotBlank() } ?: slug)
                 val showOnHome = if (forcedSlugLower != null) true else info.optBoolean("showOnHome", true)
@@ -1471,7 +1483,7 @@ class ConfigDrivenProvider(
         meta?.slug?.equals(FRENCH_TV_LIVE_SLUG, ignoreCase = true) == true
 
     private fun isPapadu(meta: ProviderMeta?): Boolean =
-        meta?.slug?.equals("PapaduStream", ignoreCase = true) == true
+        meta?.slug?.equals(PAPADU_SLUG, ignoreCase = true) == true
 
     private fun nebryxBaseUrl(): String {
         val candidate = RemoteConfig
@@ -3914,7 +3926,7 @@ class ConfigDrivenProvider(
             val posterHint = loadData.poster
             val yearHint = loadData.year
             val pageUrl = loadData.url
-            val slugHint = loadData.slug
+            val slugHint = canonicalSlug(loadData.slug)
             if (pageUrl.isBlank()) return null
             val imdbId = when {
                 url.startsWith("imdb://") -> url.removePrefix("imdb://")
@@ -3952,7 +3964,7 @@ class ConfigDrivenProvider(
             val metas = gatherProviders()
             val cachedSlug = slugHint ?: findSlugForUrl(pageUrl)
             val meta = when {
-                !cachedSlug.isNullOrBlank() -> findMetaBySlug(metas, cachedSlug)
+                !cachedSlug.isNullOrBlank() -> findMetaBySlug(metas, canonicalSlug(cachedSlug) ?: cachedSlug)
                 else -> findMetaByUrl(pageUrl, metas)
             }
             if (meta != null) {
@@ -4207,7 +4219,7 @@ class ConfigDrivenProvider(
             }
             ensureRemoteConfigs()
             val metas = gatherProviders()
-            val cachedSlug = loadData.slug ?: findSlugForUrl(pageUrl)
+            val cachedSlug = canonicalSlug(loadData.slug) ?: findSlugForUrl(pageUrl)
             val meta = when {
                 !cachedSlug.isNullOrBlank() -> findMetaBySlug(metas, cachedSlug)
                 else -> findMetaByUrl(pageUrl, metas)
@@ -4607,12 +4619,6 @@ class ConfigDrivenProvider(
         }
     }
 }
-
-
-
-
-
-
 
 
 
