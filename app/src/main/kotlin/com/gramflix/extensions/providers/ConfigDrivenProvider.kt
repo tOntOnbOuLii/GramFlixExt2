@@ -3721,26 +3721,35 @@ class ConfigDrivenProvider(
             val poster = extractPosterFromDoc(doc, pageLocation)
             if (meta != null && isAnimeSama(meta)) {
                 val panels = parseAnimeSamaPanels(doc, pageLocation)
+                // Film panels doivent devenir une saison supplémentaire avec un seul épisode.
+                val (filmPanels, seasonPanels) = panels.partition { it.first.contains("film", ignoreCase = true) }
+                val orderedPanels = seasonPanels + filmPanels
+
                 val seasonList = mutableListOf<com.lagradost.cloudstream3.SeasonData>()
                 var seasonIndex = 1
-                panels.forEach { (name, _) ->
+                orderedPanels.forEach { (name, _) ->
                     seasonList += com.lagradost.cloudstream3.SeasonData(seasonIndex, name)
                     seasonIndex++
                 }
+
                 val subbedEpisodes = mutableListOf<Episode>()
                 val dubbedEpisodes = mutableListOf<Episode>()
                 seasonIndex = 1
-                panels.forEach { (panelName, panelUrl) ->
+                orderedPanels.forEach { (panelName, panelUrl) ->
                     val vostfrSources = fetchAnimeSamaSources(panelUrl)
                     val vfUrl = panelUrl.replace("/vostfr/", "/vf/").replace("/vo/", "/vf/")
                     val vfSources = fetchAnimeSamaSources(vfUrl)
-                    val maxCount = listOf(
-                        vostfrSources.values.maxOfOrNull { it.size } ?: 0,
-                        vfSources.values.maxOfOrNull { it.size } ?: 0
-                    ).maxOrNull() ?: 0
+                    val isFilm = panelName.contains("film", ignoreCase = true)
+                    val maxCount = when {
+                        isFilm -> 1
+                        else -> listOf(
+                            vostfrSources.values.maxOfOrNull { it.size } ?: 0,
+                            vfSources.values.maxOfOrNull { it.size } ?: 0
+                        ).maxOrNull() ?: 0
+                    }
                     for (i in 0 until maxCount) {
                         val baseName = when {
-                            panelName.contains("Film", ignoreCase = true) -> "$panelName"
+                            isFilm -> if (panelName.isNotBlank()) panelName else "Film"
                             else -> "$panelName - Episode ${i + 1}"
                         }
                         val subLinks = vostfrSources.values.flatMap { list -> list.getOrNull(i)?.let { listOf(it) } ?: emptyList() }
