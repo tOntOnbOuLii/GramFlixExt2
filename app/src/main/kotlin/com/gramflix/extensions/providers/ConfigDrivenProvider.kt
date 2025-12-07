@@ -184,6 +184,13 @@ class ConfigDrivenProvider(
         val link7vo: String?
     )
 
+    private data class PapaduEpisodeMeta(
+        val title: String,
+        val season: Int?,
+        val episode: Int?,
+        val year: Int?
+    )
+
     private val homePrioritySlugs = listOf("frenchstream", "wiflix")
 
     companion object {
@@ -1462,6 +1469,9 @@ class ConfigDrivenProvider(
 
     private fun isFrenchTv(meta: ProviderMeta?): Boolean =
         meta?.slug?.equals(FRENCH_TV_LIVE_SLUG, ignoreCase = true) == true
+
+    private fun isPapadu(meta: ProviderMeta?): Boolean =
+        meta?.slug?.equals("PapaduStream", ignoreCase = true) == true
 
     private fun nebryxBaseUrl(): String {
         val candidate = RemoteConfig
@@ -3170,7 +3180,7 @@ class ConfigDrivenProvider(
             val seasonNumber = seasonAttr ?: seasonFromText ?: defaultSeason ?: 1
             val episodeNumber = episodeAttr ?: episodeFromText ?: element.attr("data-num").toIntOrNull() ?: index
             val poster = extractEpisodePoster(element, pageUrl)
-            val encoded = encodeLoadData(target, meta?.slug)
+            val encoded = encodeLoadData(target, meta?.slug, episode = episodeNumber)
             results += newEpisode(encoded) {
                 name = title
                 season = seasonNumber
@@ -4002,6 +4012,80 @@ class ConfigDrivenProvider(
         }
     }
 
+    private fun parsePapaduNumbersFromUrl(url: String?): Pair<Int?, Int?> {
+        if (url.isNullOrBlank()) return null to null
+        val segments = runCatching { URI(url).path.split("/") }.getOrElse { url.split("/") }
+        var season: Int? = null
+        var episode: Int? = null
+        for (segment in segments) {
+            val lowered = segment.lowercase(Locale.ROOT)
+            if (season == null && lowered.contains("saison")) {
+                season = digitsRegex.find(segment)?.value?.toIntOrNull()
+            }
+            if (episode == null && lowered.contains("episode")) {
+                episode = digitsRegex.find(segment)?.value?.toIntOrNull()
+            }
+        }
+        return season to episode
+    }
+
+    private fun extractPapaduYear(doc: Document): Int? {
+        return doc.select("li:matches(?i)Ann.{0,3}e)")
+            .mapNotNull { element -> digitsRegex.find(element.text())?.value?.toIntOrNull() }
+            .firstOrNull()
+    }
+
+    private fun parsePapaduEpisodeMeta(doc: Document, pageUrl: String, titleHint: String?): PapaduEpisodeMeta? {
+        val rawTitle = titleHint?.takeIf { it.isNotBlank() }
+            ?: doc.selectFirst("h1")?.text()
+            ?: doc.selectFirst("meta[property=og:title]")?.attr("content")
+            ?: doc.title()
+        if (rawTitle.isNullOrBlank()) return null
+        val cleanedTitle = rawTitle
+            .replace(Regex("(?i)saison\\s+\\d+.*"), "")
+            .replace(Regex("(?i)episode\\s+\\d+.*"), "")
+            .trim()
+            .ifBlank { rawTitle.trim() }
+        val (seasonFromUrl, episodeFromUrl) = parsePapaduNumbersFromUrl(pageUrl)
+        val (seasonFromText, episodeFromText) = parseEpisodeNumbersFromText(rawTitle)
+        val year = extractPapaduYear(doc)
+        return PapaduEpisodeMeta(
+            title = cleanedTitle,
+            season = seasonFromUrl ?: seasonFromText,
+            episode = episodeFromUrl ?: episodeFromText,
+            year = year
+        )
+    }
+
+    private suspend fun findTmdbIdForTitle(title: String?, year: Int?): Int? {
+        val query = title?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val params = LinkedHashMap<String, String>()
+        params["query"] = query
+        year?.let { params["first_air_date_year"] = it.toString() }
+        val json = tmdbGet("/search/tv", params) ?: return null
+        val results = json.optJSONArray("results") ?: return null
+        var bestId: Int? = null
+        var bestScore = Int.MIN_VALUE
+        for (i in 0 until results.length()) {
+            val item = results.optJSONObject(i) ?: continue
+            val id = item.optInt("id").takeIf { it > 0 } ?: continue
+            val name = item.optString("name").takeIf { it.isNotBlank() }
+                ?: item.optString("original_name").takeIf { it.isNotBlank() }
+                ?: query
+            val airYear = item.optString("first_air_date")
+                .takeIf { it.isNotBlank() }
+                ?.substring(0, 4)
+                ?.toIntOrNull()
+            val distancePenalty = if (year != null && airYear != null) abs(year - airYear) * 3 else 0
+            val score = computeMatchScore(name, query) - distancePenalty - i
+            if (score > bestScore) {
+                bestScore = score
+                bestId = id
+            }
+        }
+        return bestId
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -4176,6 +4260,20 @@ class ConfigDrivenProvider(
                         success = true
                     } catch (_: Throwable) {
                     }
+                }
+            }
+            if (!success && isPapadu(meta)) {
+                val papaduMeta = parsePapaduEpisodeMeta(doc, pageUrl, loadData.title)
+                val episodeNumber = papaduMeta?.episode ?: loadData.episode
+                val seasonNumber = papaduMeta?.season ?: parsePapaduNumbersFromUrl(pageUrl).first ?: 1
+                val tmdbId = findTmdbIdForTitle(papaduMeta?.title, papaduMeta?.year)
+                if (tmdbId != null && episodeNumber != null) {
+                    val embedUrl = "https://vidsrc.net/embed/tv?tmdb=$tmdbId&season=$seasonNumber&episode=$episodeNumber"
+                    val handled = runCatching {
+                        loadExtractor(embedUrl, pageUrl, subtitleCallback, hosterAwareCallback)
+                        true
+                    }.getOrElse { false }
+                    success = handled || success
                 }
             }
             success
